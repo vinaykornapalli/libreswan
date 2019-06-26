@@ -2472,7 +2472,19 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 		}
 		freeanychunk(null_auth);
 	}
-
+    
+	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder
+	Currently no policy is added whether to send it or not.
+	Later it will be sent only if session resumption policy is enabled.
+	*/
+     
+	 if (1) {  /*This will be changed after adding policy for enabling resumption*/
+		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
+			 freeanychunk(null_auth);
+			 return STF_INTERNAL_ERROR;
+		 }
+	 }
+	 
 	/* send CP payloads */
 	if (pc->modecfg_domains != NULL || pc->modecfg_dns != NULL) {
 		ikev2_send_cp(pst, ISAKMP_NEXT_v2NONE, &sk.pbs);
