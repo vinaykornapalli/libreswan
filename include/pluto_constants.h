@@ -1052,6 +1052,7 @@ enum sa_policy_bits {
 	POLICY_ESN_NO_IX,		/* send/accept ESNno */
 	POLICY_ESN_YES_IX,		/* send/accept ESNyes */
 #define POLICY_IX_LAST	POLICY_ESN_YES_IX
+    POLICY_SESSION_RESUME_IX,
 };
 
 #define POLICY_PSK	LELEM(POLICY_PSK_IX)
@@ -1103,6 +1104,7 @@ enum sa_policy_bits {
 #define POLICY_PPK_INSIST	LELEM(POLICY_PPK_INSIST_IX)
 #define POLICY_ESN_NO		LELEM(POLICY_ESN_NO_IX)	/* accept or request ESNno */
 #define POLICY_ESN_YES		LELEM(POLICY_ESN_YES_IX)	/* accept or request ESNyes */
+#define POLICY_SESSION_RESUME   LELEM(POLICY_SESSION_RESUME_IX)
 
 #define NEGOTIATE_AUTH_HASH_SHA1		LELEM(IKEv2_AUTH_HASH_SHA1)	/* rfc7427 does responder support SHA1? */
 #define NEGOTIATE_AUTH_HASH_SHA2_256		LELEM(IKEv2_AUTH_HASH_SHA2_256)	/* rfc7427 does responder support SHA2-256?  */

@@ -115,7 +115,7 @@ static void help(void)
 		"	[--ikev1-allow | --ikev2-allow] \\\n"
 		"	[--allow-narrowing] [--sareftrack] [--sarefconntrack] \\\n"
 		"	[--ikefrag-allow | --ikefrag-force] [--no-ikepad] \\\n"
-		"	[--esn ] [--no-esn] [--decap-dscp] [--nopmtudisc] [--mobike] \\\n"
+		"	[--esn ] [--no-esn] [--decap-dscp] [--nopmtudisc] [--mobike] [--session-resumption] \\\n"
 #ifdef HAVE_NM
 		"	[--nm-configured] \\\n"
 #endif
@@ -458,6 +458,7 @@ enum option_enums {
 	CD_RSA_SHA2_384,
 	CD_RSA_SHA2_512,
 	CD_ESP,
+	CD_SESSION_RESUME,
 #   define CD_LAST CD_ESP	/* last connection description */
 
 /*
@@ -760,6 +761,7 @@ static const struct option long_opts[] = {
 	PS("nopmtudisc", NOPMTUDISC),
 	PS("ms-dh-downgrade", MSDH_DOWNGRADE),
 	PS("dns-match-id", DNS_MATCH_ID),
+	PS("session-resumption",SESSION_RESUME),
 #undef PS
 
 
@@ -2286,6 +2288,9 @@ int main(int argc, char **argv)
 			}
 			continue;
 		}
+        /* --SESSION-RESUMPTION */
+		case CDP_SINGLETON + POLICY_SESSION_RESUME_IX:
+
 
 		default:
 			bad_case(c);

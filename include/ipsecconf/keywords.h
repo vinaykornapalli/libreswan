@@ -267,7 +267,7 @@ enum keyword_numeric_conn_field {
 	KNCF_VTI_ROUTING,	/* let updown do routing into VTI device */
 	KNCF_VTI_SHARED,	/* VTI device is shared - enable checks and disable cleanup */
 	KNCF_NIC_OFFLOAD,	/* xfrm offload to network device */
-
+    KNCF_SESSION_RESUME,/*Session Resumption Enable / Disable*/
 	KNCF_ROOF
 };
 

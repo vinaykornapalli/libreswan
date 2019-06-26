@@ -426,6 +426,7 @@ const char *const sa_policy_bit_names[] = {
 	"PPK_INSIST",
 	"ESN_NO",
 	"ESN_YES",
+	"SESSION_RESUME"
 	NULL	/* end for bitnamesof() */
 };
 
