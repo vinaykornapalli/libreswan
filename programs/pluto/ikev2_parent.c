@@ -2484,7 +2484,7 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 			 return STF_INTERNAL_ERROR;
 		 }
 	 }
-	 
+
 	/* send CP payloads */
 	if (pc->modecfg_domains != NULL || pc->modecfg_dns != NULL) {
 		ikev2_send_cp(pst, ISAKMP_NEXT_v2NONE, &sk.pbs);
@@ -3111,6 +3111,11 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	if (c->send_no_esp_tfc) {
 		if (!emit_v2N(v2N_ESP_TFC_PADDING_NOT_SUPPORTED, &sk.pbs))
 			return STF_INTERNAL_ERROR;
+	}
+
+	if (1) { /*st->st_seen_ticket to be added as condition*/
+		if (!emit_v2N(v2N_TICKET_ACK , &sk.pbs))
+		     return STF_INTERNAL_ERROR;
 	}
 
 	/* send out the IDr payload */
