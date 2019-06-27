@@ -3119,6 +3119,7 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	if (st->st_seen_ticket_request) {
 		if (LIN(POLICY_SESSION_RESUME, cc->policy)) {
 			/* Currenly only ticket acknowlegment is sent */
+			st->st_sent_ticket_ack = TRUE;
 			if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
 				return STF_INTERNAL_ERROR;
 		} else {

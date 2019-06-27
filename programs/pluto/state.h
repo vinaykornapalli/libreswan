@@ -740,6 +740,8 @@ struct state {
 	bool st_seen_ticket_request;    /* seen TICKCET_REQUEST */
 	bool st_sent_ticket;            /* sent TICKET notify */
 	bool st_seen_ticket;            /* seen TICKET */
+	bool st_sent_ticket_ack;        /* sent TICKET_ACK notify */
+	bool st_seen_ticket_ack;        /* seen TICKET_ACK */
 };
 
 /*
