@@ -2473,12 +2473,9 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 		freeanychunk(null_auth);
 	}
     
-	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder
-	Currently no policy is added whether to send it or not.
-	Later it will be sent only if session resumption policy is enabled.
-	*/
+	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder*/
      
-	 if (1) {  /*This will be changed after adding policy for enabling resumption*/
+	 if (LIN(POLICY_SESSION_RESUME, cc->policy)) { 
 		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
 			 freeanychunk(null_auth);
 			 return STF_INTERNAL_ERROR;
