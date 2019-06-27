@@ -2855,7 +2855,7 @@ stf_status ikev2_parent_inI2outR2_id_tail(struct msg_digest *md)
 		    DBG(DBG_CONTROLMORE, DBG_log("TICKET_REQUEST received"));
 			st->st_seen_ticket_request = TRUE;
 			break;
-			
+
 		/* Child SA related NOTIFYs are processed later in ikev2_process_ts_and_rest() */
 		case v2N_USE_TRANSPORT_MODE:
 		case v2N_IPCOMP_SUPPORTED:
@@ -3116,10 +3116,18 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 			return STF_INTERNAL_ERROR;
 	}
 
-	if (1) { /*st->st_seen_ticket to be added as condition*/
-		if (!emit_v2N(v2N_TICKET_ACK , &sk.pbs))
-		     return STF_INTERNAL_ERROR;
+	if (st->st_seen_ticket_request) {
+		if (LIN(POLICY_SESSION_RESUME, cc->policy)) {
+			/* Currenly only ticket acknowlegment is sent */
+			if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
+				return STF_INTERNAL_ERROR;
+		} else {
+		    /* If responder doesnot support session-resumption no acknowlegment is sent */
+		    if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
+		        return STF_INTERNAL_ERROR;
+	    }
 	}
+	
 
 	/* send out the IDr payload */
 	unsigned char idhash_out[MAX_DIGEST_LEN];
