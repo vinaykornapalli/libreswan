@@ -2476,6 +2476,7 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder*/
      
 	 if (LIN(POLICY_SESSION_RESUME, cc->policy)) { 
+		 cst->st_sent_ticket_request = pst->st_sent_ticket_request = TRUE;
 		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
 			 freeanychunk(null_auth);
 			 return STF_INTERNAL_ERROR;
@@ -2850,6 +2851,11 @@ stf_status ikev2_parent_inI2outR2_id_tail(struct msg_digest *md)
 			st->st_seen_initialc = TRUE;
 			break;
 
+        case v2N_TICKET_REQUEST:
+		    DBG(DBG_CONTROLMORE, DBG_log("TICKET_REQUEST received"));
+			st->st_seen_ticket_request = TRUE;
+			break;
+			
 		/* Child SA related NOTIFYs are processed later in ikev2_process_ts_and_rest() */
 		case v2N_USE_TRANSPORT_MODE:
 		case v2N_IPCOMP_SUPPORTED:
