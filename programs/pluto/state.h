@@ -735,10 +735,11 @@ struct state {
 	generalName_t *st_requested_ca;		/* collected certificate requests */
 	uint8_t st_reply_xchg;
 	bool st_peer_wants_null;		/* We received IDr payload of type ID_NULL (and we allow POLICY_AUTH_NULL */
-	bool st_sent_ticket_request;
-	bool st_seen_ticket_request;
-	bool st_sent_ticket;
-	bool st_seen_ticket;
+	/* Stuff belonging to session-resumption */
+	bool st_sent_ticket_request;    /* sent TICKET_REQUEST notify */
+	bool st_seen_ticket_request;    /* seen TICKCET_REQUEST */
+	bool st_sent_ticket;            /* sent TICKET notify */
+	bool st_seen_ticket;            /* seen TICKET */
 };
 
 /*
