@@ -1227,6 +1227,8 @@ static bool load_conn(
 	KW_POLICY_FLAG(KNCF_DNS_MATCH_ID, POLICY_DNS_MATCH_ID);
 	KW_POLICY_FLAG(KNCF_SHA2_TRUNCBUG, POLICY_SHA2_TRUNCBUG);
 
+	KW_POLICY_FLAG(KNCF_SESSION_RESUME , POLICY_SESSION_RESUME);
+
 	/* ??? sometimes (when? why?) the member is already set */
 
 #	define str_to_conn(member, kscf) { \
