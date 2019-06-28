@@ -3122,10 +3122,12 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 			st->st_sent_ticket_ack = TRUE;
 			if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
 				return STF_INTERNAL_ERROR;
+			DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
 		} else {
 		    /* If responder doesnot support session-resumption no acknowlegment is sent */
 		    if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
 		        return STF_INTERNAL_ERROR;
+			DBG(DBG_CONTROLMORE, DBG_log("TICKET_NACK sent as there is no session-resumption requested on server"));
 	    }
 	}
 	
