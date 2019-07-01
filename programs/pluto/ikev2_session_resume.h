@@ -30,6 +30,7 @@ struct ticket_by_reference {
 
 struct ticket_payload {
     chunk_t ticket;
+    
 };
 
 
