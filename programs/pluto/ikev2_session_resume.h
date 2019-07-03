@@ -19,19 +19,32 @@
 
 */
 
-
+/* Ticket by value structures */
 struct ticket_by_value {
 
 };
 
+/* Ticket by reference structures */
+
+struct ikev2_state_ref {
+
+};
+
 struct ticket_by_reference {
-   uint8_t 
+   uint8_t format_version;
+
 };
 
 struct ticket_payload {
     chunk_t ticket;
-    
+
 };
+
+
+/* Functions related to ticket */
+
+extern bool create_ticket_payload(chunk_t ticket, struct ticket_payload *t_payload);
+extern bool emit_ticket_payload(struct ticket_payload t_payload, pb_stream *pbs);
 
 
 

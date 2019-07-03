@@ -84,6 +84,7 @@
 #include "ikev2_msgid.h"
 #include "state_db.h"
 #include "crypt_symkey.h" /* for release_symkey */
+#include "ikev2_session_resume.h"
 
 struct mobike {
 	ip_address remoteaddr;
@@ -3118,11 +3119,17 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 
 	if (st->st_seen_ticket_request) {
 		if (LIN(POLICY_SESSION_RESUME, cc->policy)) {
-			/* Currenly only ticket acknowlegment is sent */
-			st->st_sent_ticket_ack = TRUE;
-			if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
-				return STF_INTERNAL_ERROR;
-			DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
+			pb_stream ticket_pbs;
+			struct ticket_payload t_payload; //to-do: need to fill it before sending
+			if (!emit_v2Npl(v2N_TICKET_LT_OPAQUE, &sk.pbs, &ticket_pbs) ||
+				!emit_ticket_payload(&t_payload , &ticket_pbs)) {
+			} else {
+				/* Currenly only ticket acknowlegment is sent */
+				st->st_sent_ticket_ack = TRUE;
+				if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
+					return STF_INTERNAL_ERROR;
+				DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
+			}
 		} else {
 		    /* If responder doesnot support session-resumption no acknowlegment is sent */
 		    if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
