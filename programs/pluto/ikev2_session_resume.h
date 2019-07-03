@@ -44,7 +44,7 @@ struct ticket_payload {
 /* Functions related to ticket */
 
 extern bool create_ticket_payload(chunk_t ticket, struct ticket_payload *t_payload);
-extern bool emit_ticket_payload(struct ticket_payload t_payload, pb_stream *pbs);
+extern bool emit_ticket_payload(struct ticket_payload *t_payload, pb_stream *pbs);
 
 
 
