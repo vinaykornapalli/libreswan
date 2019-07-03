@@ -513,7 +513,8 @@ void ikev2_parent_outI1(fd_t whack_sock,
 		       struct connection *c,
 		       struct state *predecessor,
 		       lset_t policy,
-		       unsigned long try
+		       unsigned long try,
+		       const threadtime_t *inception
 #ifdef HAVE_LABELED_IPSEC
 		       , struct xfrm_user_sec_ctx_ike *uctx
 #endif
@@ -530,6 +531,8 @@ void ikev2_parent_outI1(fd_t whack_sock,
 	struct ike_sa *ike = new_v2_state(STATE_PARENT_I0, SA_INITIATOR,
 					  ike_initiator_spi(), zero_ike_spi,
 					  c, policy, try, whack_sock);
+	statetime_t start = statetime_backdate(&ike->sa, inception);
+
 	push_cur_state(&ike->sa);
 	/* set up new state */
 	struct state *st = &ike->sa;
@@ -604,6 +607,7 @@ void ikev2_parent_outI1(fd_t whack_sock,
 	request_ke_and_nonce("ikev2_outI1 KE", st,
 			     st->st_oakley.ta_dh,
 			     ikev2_parent_outI1_continue);
+	statetime_stop(&start, "%s()", __func__);
 	reset_globals();
 }
 
@@ -833,68 +837,25 @@ static stf_status ikev2_parent_outI1_common(struct state *st)
 static crypto_req_cont_func ikev2_parent_inI1outR1_continue;	/* forward decl and type assertion */
 static crypto_transition_fn ikev2_parent_inI1outR1_continue_tail;	/* forward decl and type assertion */
 
-stf_status ikev2_parent_inI1outR1(struct state *null_st, struct msg_digest *md)
+stf_status ikev2_parent_inI1outR1(struct state *st, struct msg_digest *md)
 {
-	passert(null_st == NULL);	/* initial responder -> no state */
-
-	lset_t policy = LEMPTY;
-	struct connection *c = find_v2_host_pair_connection(md, &policy);
-	if (c == NULL) {
-		/*
-		 * NO_PROPOSAL_CHOSEN is used when the list of proposals is empty,
-		 * like when we did not find any connection to use.
-		 *
-		 * INVALID_SYNTAX is for errors that a configuration change could
-		 * not fix.
-		 */
-		send_v2N_response_from_md(md, v2N_NO_PROPOSAL_CHOSEN, NULL);
-		return STF_DROP;
-	}
-
-	/* Vendor ID processing */
-	for (struct payload_digest *v = md->chain[ISAKMP_NEXT_v2V]; v != NULL; v = v->next) {
-		handle_vendorid(md, (char *)v->pbs.cur, pbs_left(&v->pbs), TRUE);
-	}
-
-	/*
-	 * We've committed to creating a state and, presumably,
-	 * dedicating real resources to the connection.
-	 */
-	pexpect(md->svm == finite_states[STATE_PARENT_R0]->v2_transitions);
-	struct ike_sa *ike = new_v2_state(STATE_PARENT_R0, SA_RESPONDER,
-					  md->hdr.isa_ike_spis.initiator,
-					  ike_responder_spi(&md->sender),
-					  c, policy, 0, null_fd);
-	push_cur_state(&ike->sa);
-	v2_msgid_start_responder(ike, &ike->sa, md);
-	struct state *st = &ike->sa;
+	struct ike_sa *ike = pexpect_ike_sa(st);
+	struct connection *c = ike->sa.st_connection;
 	/* set up new state */
 	update_ike_endpoints(ike, md);
 	passert(st->st_ike_version == IKEv2);
 	passert(st->st_state->kind == STATE_PARENT_R0);
 	st->st_original_role = ORIGINAL_RESPONDER;
 	passert(st->st_sa_role == SA_RESPONDER);
-
-	/*
-	 * "cur_state" has been set (possibly repeatedly) so all
-	 * systems are go - emit a log record as early as possible.
-	 *
-	 * Include the "hidden" prep time that's already been sunk
-	 * into the the message.
-	 */
-	LSWLOG(buf) {
-		lswlogf(buf, "processing ");
-		lswlog_msg_digest(buf, md);
-		deltatime_t prep_time = realtimediff(realnow(), md->md_inception);
-		lswlogf(buf, " (message arrived ");
-		lswlog_deltatime(buf, prep_time);
-		lswlogf(buf, " seconds ago)");
-	}
-
-	md->st = st;
+	pexpect(md->st == st);
 	/* set by caller */
 	pexpect(md->from_state == STATE_PARENT_R0);
 	pexpect(md->svm == finite_states[STATE_PARENT_R0]->v2_transitions);
+
+	/* Vendor ID processing */
+	for (struct payload_digest *v = md->chain[ISAKMP_NEXT_v2V]; v != NULL; v = v->next) {
+		handle_vendorid(md, (char *)v->pbs.cur, pbs_left(&v->pbs), TRUE);
+	}
 
 	/* Get the proposals ready.  */
 	struct ikev2_proposals *ike_proposals =
@@ -2584,22 +2545,6 @@ static crypto_req_cont_func ikev2_ike_sa_process_auth_request_no_skeyid_continue
 stf_status ikev2_ike_sa_process_auth_request_no_skeyid(struct state *st,
 						       struct msg_digest *md UNUSED)
 {
-	/*
-	 * This log line flags that a complete packet has been
-	 * received and processing as commenced - any further delay is
-	 * at our end.
-	 *
-	 * XXX: move this into ikev2.c?
-	 */
-	LSWLOG(buf) {
-		lswlogf(buf, "processing encrypted ");
-		lswlog_msg_digest(buf, md);
-		deltatime_t prep_time = realtimediff(realnow(), md->md_inception);
-		lswlogf(buf, " (message arrived ");
-		lswlog_deltatime(buf, prep_time);
-		lswlogf(buf, " seconds ago)");
-	}
-
 	/* for testing only */
 	if (IMPAIR(SEND_NO_IKEV2_AUTH)) {
 		libreswan_log(
