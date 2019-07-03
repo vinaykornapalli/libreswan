@@ -60,6 +60,7 @@ OBJS += ikev2_msgid.o
 OBJS += state_db.o
 OBJS += show.o
 OBJS += retransmit.o
+OBJS += ikev2_session_resume.o
 
 # local (possibly more up to date) copy of <linux/xfrm.h>
 ifeq ($(USE_XFRM_HEADER_COPY),true)
