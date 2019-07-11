@@ -60,7 +60,7 @@ OBJS += ikev2_msgid.o
 OBJS += state_db.o
 OBJS += show.o
 OBJS += retransmit.o
-OBJS += ikev2_session_resume.o
+
 
 # local (possibly more up to date) copy of <linux/xfrm.h>
 ifeq ($(USE_XFRM_HEADER_COPY),true)
@@ -235,6 +235,7 @@ OBJS += nss_ocsp.o nss_crl_import.o
 OBJS += nss_err.o
 OBJS += root_certs.o
 OBJS += pluto_timing.o
+OBJS += ikev2_session_resume.o
 
 # Archives
 OBJS += $(LIBRESWANLIB)
