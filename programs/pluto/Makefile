@@ -61,7 +61,6 @@ OBJS += state_db.o
 OBJS += show.o
 OBJS += retransmit.o
 
-
 # local (possibly more up to date) copy of <linux/xfrm.h>
 ifeq ($(USE_XFRM_HEADER_COPY),true)
 CFLAGS+=-I ${LIBRESWANSRCDIR}/programs/pluto/linux-copy

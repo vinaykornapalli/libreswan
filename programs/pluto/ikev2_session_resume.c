@@ -1,12 +1,12 @@
 /*
  *  Helper functions and ticket store for IKEv2 Session Resumption
 */
-
-#include "ikev2_session_resume.h"
+#include <unistd.h>
 #include "state.h"
 #include "packet.h"
 #include "lswalloc.h"
 
+#include "ikev2_session_resume.h"
 
 /* Functions for making and emitting ticket payload*/
 
