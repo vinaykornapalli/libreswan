@@ -7,6 +7,7 @@
 
 #include "state.h"
 #include "packet.h"
+#include "deltatime.h"
 
 /*
  * There are two types for ticket:
@@ -22,6 +23,8 @@
 /* Ticket by value structures */
 struct ticket_by_value {
 
+/*currently bear state without any encryption is sent*/
+ struct state st;
 };
 
 /* Ticket by reference structures */
@@ -36,6 +39,7 @@ struct ticket_by_reference {
 };
 
 struct ticket_payload {
+    deltatime_t lifetime;
     chunk_t ticket;
 
 };
@@ -43,9 +47,9 @@ struct ticket_payload {
 
 /* Functions related to ticket */
 
-extern bool create_ticket_payload(chunk_t ticket, struct ticket_payload *t_payload);
+extern bool create_ticket_payload(struct state *st struct ticket_payload *t_payload);
 extern bool emit_ticket_payload(struct ticket_payload *t_payload, pb_stream *pbs);
-
+extern bool client_recv_ticket(pb_stream *pbs);
 
 
 #endif

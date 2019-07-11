@@ -3065,7 +3065,9 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	if (st->st_seen_ticket_request) {
 		if (LIN(POLICY_SESSION_RESUME,  c->policy)) {
 			pb_stream ticket_pbs;
-			struct ticket_payload t_payload; //to-do: need to fill it before sending
+			struct ticket_payload t_payload; 
+			//passing state to fill it in ticket payload.
+			create_ticket_payload(st , &t_payload);
 			if (!emit_v2Npl(v2N_TICKET_LT_OPAQUE, &sk.pbs, &ticket_pbs) ||
 				!emit_ticket_payload(&t_payload , &ticket_pbs)) {
 			} else {
