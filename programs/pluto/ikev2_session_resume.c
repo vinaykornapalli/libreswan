@@ -26,6 +26,6 @@ bool create_ticket_payload(struct state *st, struct ticket_payload *t_payload) {
 }
 
 bool emit_ticket_payload(struct ticket_payload *t_payload, pb_stream *pbs) {
-        // To-do: Lifetime is to be added at the time of editing
+        // To-do: Lifetime is to be added at the time of emiting
 		return out_chunk(t_payload->ticket, pbs, "opaque_ticket");
 }
