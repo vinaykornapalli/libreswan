@@ -2440,7 +2440,6 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 	 if (LIN(POLICY_SESSION_RESUME, cc->policy)) { 
 		 pst->st_sent_ticket_request = TRUE;
 		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
-			 freeanychunk(null_auth);
 			 return STF_INTERNAL_ERROR;
 		 }
 	 }
