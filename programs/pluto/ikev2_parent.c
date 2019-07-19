@@ -3061,28 +3061,34 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 			return STF_INTERNAL_ERROR;
 	}
 
-	if (st->st_seen_ticket_request) {
-		if (LIN(POLICY_SESSION_RESUME,  c->policy)) {
-			pb_stream ticket_pbs;
-			struct ticket_payload t_payload; 
-			//passing state to fill it in ticket payload.
-			create_ticket_payload(st , &t_payload);
-			if (!emit_v2Npl(v2N_TICKET_LT_OPAQUE, &sk.pbs, &ticket_pbs) ||
-				!emit_ticket_payload(&t_payload , &ticket_pbs)) {
-			} else {
-				/* Currenly only ticket acknowlegment is sent */
-				st->st_sent_ticket_ack = TRUE;
-				if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
-					return STF_INTERNAL_ERROR;
-				DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
-			}
-		} else {
-		    /* If responder doesnot support session-resumption no acknowlegment is sent */
-		    if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
-		        return STF_INTERNAL_ERROR;
-			DBG(DBG_CONTROLMORE, DBG_log("TICKET_NACK sent as there is no session-resumption requested on server"));
-	    }
+	if (LIN(POLICY_SESSION_RESUME, c->policy) && st->st_seen_ticket_request) {
+		chunk_t *ticket_blob = st_to_ticket(st);
+		if (!emit_v2NChunk(v2N_TICKET_LT_OPAQUE, ticket_blob, &sk.pbs)) {
+			return STF_INTERNAL_ERROR;
+		}
+		freeanychunk(*ticket_blob);
+		st->st_sent_ticket = TRUE;
+
+		/*
+		N(TICKET_ACK) comes into action if there are any packet size limitations 
+		To-do: Need to find those situations.
+		st->st_sent_ticket_ack = TRUE;
+		if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
+			return STF_INTERNAL_ERROR;
+		DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
+
+		As per RFC 
+		 "Returns an N(TICKET_NACK) payload, if it refuses to grant a
+          ticket for some reason."
+         But currently exact reason for not granting is not determined yet.
+	   if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
+	       return STF_INTERNAL_ERROR;
+	    */
 	}
+
+	
+	    
+	
 	
 
 	/* send out the IDr payload */

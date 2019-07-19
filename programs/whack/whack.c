@@ -1704,6 +1704,9 @@ int main(int argc, char **argv)
 		/* --mobike */
 		case CDP_SINGLETON + POLICY_MOBIKE_IX:
 
+		 /* --SESSION-RESUMPTION */
+		case CDP_SINGLETON + POLICY_SESSION_RESUME_IX:
+
 		/* --sareftrack */
 		case CDP_SINGLETON + POLICY_SAREF_TRACK_IX:
 		/* --sarefconntrack */
@@ -2298,10 +2301,7 @@ int main(int argc, char **argv)
 			}
 			continue;
 		}
-        /* --SESSION-RESUMPTION */
-		case CDP_SINGLETON + POLICY_SESSION_RESUME_IX:
-
-
+       
 		default:
 			bad_case(c);
 			break;

@@ -46,10 +46,8 @@ struct ticket_payload {
 
 
 /* Functions related to ticket */
-
-extern bool create_ticket_payload(struct state *st struct ticket_payload *t_payload);
-extern bool emit_ticket_payload(struct ticket_payload *t_payload, pb_stream *pbs);
-extern bool client_recv_ticket(pb_stream *pbs);
+struct chunk_t *st_to_ticket(const struct state *st);
+struct state *ticket_to_st(const struct chunk_t *ticket);
 
 
 #endif
