@@ -23,8 +23,49 @@
 /* Ticket by value structures */
 struct ticket_by_value {
 
-/*currently bear state without any encryption is sent*/
- struct state st;
+   struct {
+    /* 1 for this version of the protocol */
+    uint8_t format_version;
+
+    /* sent as 0, ignored by receiver. */
+    uint8_t reserved;
+
+    /* Reference to the key stored in NSS database */
+    uint8_t *key_id;
+
+    u_char IV[MAX_DIGEST_LEN];
+
+    struct {
+        /* IDi */
+        uint8_t st_myuserprotoid;
+        uint16_t st_myuserport;
+
+        /* IDr */
+        uint8_t st_peeruserprotoid;
+        uint16_t st_peeruserport;
+
+        /* SPIi , SPIr */
+        ike_spis_t st_ike_spis;
+
+        /* Reference to sk_d_old */
+        PK11SymKey *st_skey_d_nss;
+
+        /* Established Proposals */
+        struct ikev2_proposal *st_accepted_ike_proposal;
+
+        /* Authentication Methods */
+        oakley_auth_t auth;
+
+        /* All the chosen Algorithm Description */
+        struct trans_attrs st_oakley;
+
+        Deltatime_t expiration_time;
+
+    } ike_sa_state;
+
+   } protected_part;
+   
+   u_int32_t mac ;
 };
 
 /* Ticket by reference structures */
