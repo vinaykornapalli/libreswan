@@ -31,7 +31,7 @@ struct ticket_by_value {
     uint8_t reserved;
 
     /* Reference to the key stored in NSS database */
-    uint8_t *key_id;
+    PK11SymKey *key_id;
 
     u_char IV[MAX_DIGEST_LEN];
 
@@ -64,7 +64,7 @@ struct ticket_by_value {
     } ike_sa_state;
 
    } protected_part;
-   
+
    u_int32_t mac ;
 };
 
