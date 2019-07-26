@@ -20,10 +20,30 @@
 
 */
 
+struct ike_ticket_state {
+    /* IDi */
+    uint8_t st_myuserprotoid;
+    uint16_t st_myuserport;
+
+    /* IDr */
+    uint8_t st_peeruserprotoid;
+    uint16_t st_peeruserport;
+
+    /* SPIi , SPIr */
+    ike_spis_t st_ike_spis;
+
+    /* Reference to sk_d_old */
+    PK11SymKey *st_skey_d_nss;
+
+    /* All the chosen Algorithm Description */
+    struct trans_attrs st_oakley;
+
+    Deltatime_t expiration_time;
+}
+
 /* Ticket by value structures */
 struct ticket_by_value {
 
-   struct {
     /* 1 for this version of the protocol */
     uint8_t format_version;
 
@@ -34,37 +54,11 @@ struct ticket_by_value {
     PK11SymKey *key_id;
 
     u_char IV[MAX_DIGEST_LEN];
+    
+    /* The part to be encrypted */
+    struct ike_ticket_state ike_tk_state;
 
-    struct {
-        /* IDi */
-        uint8_t st_myuserprotoid;
-        uint16_t st_myuserport;
-
-        /* IDr */
-        uint8_t st_peeruserprotoid;
-        uint16_t st_peeruserport;
-
-        /* SPIi , SPIr */
-        ike_spis_t st_ike_spis;
-
-        /* Reference to sk_d_old */
-        PK11SymKey *st_skey_d_nss;
-
-        /* Established Proposals */
-        struct ikev2_proposal *st_accepted_ike_proposal;
-
-        /* Authentication Methods */
-        oakley_auth_t auth;
-
-        /* All the chosen Algorithm Description */
-        struct trans_attrs st_oakley;
-
-        Deltatime_t expiration_time;
-
-    } ike_sa_state;
-
-   } protected_part;
-
+   
    u_int32_t mac ;
 };
 
@@ -79,10 +73,20 @@ struct ticket_by_reference {
 
 };
 
+/* Ticket Payload */
 struct ticket_payload {
+    /*
+      The reason for lifetime to be present outside ticket is 
+      -The client will clear expired tickets.
+    */
     deltatime_t lifetime;
-    chunk_t ticket;
-
+    /*
+      
+    */
+    union ticket {
+      struct ticket_by_value tk_by_value; 
+      struct ticket_by_reference tk_by_ref;
+    } ticket;
 };
 
 
