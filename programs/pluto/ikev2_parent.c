@@ -3062,11 +3062,11 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	}
 
 	if (LIN(POLICY_SESSION_RESUME, c->policy) && st->st_seen_ticket_request) {
-		chunk_t *ticket_blob = st_to_ticket(st);
-		if (!emit_v2NChunk(v2N_TICKET_LT_OPAQUE, ticket_blob, &sk.pbs)) {
+		chunk_t *tk_payl_chunk = st_to_ticket(st);
+		if (!emit_v2NChunk(v2N_TICKET_LT_OPAQUE, tk_payl_chunk, &sk.pbs)) {
 			return STF_INTERNAL_ERROR;
 		}
-		freeanychunk(*ticket_blob);
+		freeanychunk(*tk_payl_chunk);
 		st->st_sent_ticket = TRUE;
 
 		/*
@@ -3603,6 +3603,26 @@ stf_status ikev2_parent_inR2(struct state *st, struct msg_digest *md)
 			DBG(DBG_CONTROLMORE, DBG_log("Received v2N_USE_TRANSPORT_MODE in IKE_AUTH reply"));
 			got_transport = TRUE;
 			break;
+		case v2N_TICKET_LT_OPAQUE:
+		{
+			pb_stream pbs = ntfy->pbs;
+			size_t len = pbs_left(&pbs);
+
+			DBG(DBG_CONTROL, DBG_log("received TICKET_LT_OPAQUE"));
+			
+
+			chunk_t tk_payl_chunk = alloc_chunk(len, "TICKET_LT_OPAQUE");
+
+			if (!in_raw(tk_payl_chunk.ptr, len, &pbs, "TICKET_LT_OPAQUE extract")) {
+				loglog(RC_LOG_SERIOUS, "Failed to extract %zd bytes of TICKET_LT_OPAQUE from Notify payload", len);
+				freeanychunk(tk_payl_chunk);
+				return STF_FATAL;
+			}
+			freeanychunk(st->st_no_ppk_auth);	/* in case this was already occupied */
+			st->st_no_ppk_auth = no_ppk_auth;
+			break;
+		}
+		    
 		default:
 			DBG(DBG_CONTROLMORE, DBG_log("Received %s notify - ignored",
 				enum_name(&ikev2_notify_names,

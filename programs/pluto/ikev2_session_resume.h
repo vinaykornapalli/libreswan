@@ -80,9 +80,7 @@ struct ticket_payload {
       -The client will clear expired tickets.
     */
     deltatime_t lifetime;
-    /*
-      
-    */
+    
     union ticket {
       struct ticket_by_value tk_by_value; 
       struct ticket_by_reference tk_by_ref;
@@ -94,5 +92,17 @@ struct ticket_payload {
 struct chunk_t *st_to_ticket(const struct state *st);
 struct state *ticket_to_st(const struct chunk_t *ticket);
 
+/* Functions related to Session Resume Exchange */
+
+
+/* ikev2 Session Resumption initiator function */
+void ikev2_session_resume_outI1(fd_t whack_sock,
+			      struct connection *c,
+			      struct state *st
+			      );
+
+/* Functions related to hibernate/resume connection */
+void hibernate_connection(struct connection *c);
+void resume_connection(struct connection *c);
 
 #endif

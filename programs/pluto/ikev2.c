@@ -630,6 +630,35 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .processor  = process_encrypted_informational_ikev2,
 	  .recv_type  = ISAKMP_v2_INFORMATIONAL,
 	  .timeout_event = EVENT_RETAIN, },
+      /* State Transistions Related to Session-Resumption(RFC 5723) */
+	{ .story      = "Hiberate STATE_PARENT_I2",
+	  .state      = STATE_PARENT_I2,
+	  .next_state = STATE_PARENT_HIBERNATED,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
+    { .story      = "The Hibernated state is resumed",
+	  .state      = STATE_PARENT_HIBERNATED,
+	  .next_state = STATE_PARENT_RESUME,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+    
+	 {.story      = "The Hibernated state is resumed",
+	  .state      = STATE_PARENT_HIBERNATED,
+	  .next_state = STATE_PARENT_RESUME,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
+	 {.story      = "Resumed state transition to STATE_PARENT_I2",
+	  .state      = STATE_PARENT_RESUME,
+	  .next_state = STATE_PARENT_I2,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
 
 	/* last entry */
 	{ .story      = "roof",

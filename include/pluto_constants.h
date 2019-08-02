@@ -659,6 +659,10 @@ enum state_kind {
 	STATE_IKESA_DEL,
 	STATE_CHILDSA_DEL,
 
+	/* SESSION RESUMPTION states */
+	STATE_PARENT_HIBERNATED,
+	STATE_PARENT_RESUME,
+
 	STATE_IKEv2_ROOF	/* not a state! */
 };
 

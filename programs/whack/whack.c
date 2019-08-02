@@ -199,6 +199,8 @@ static void help(void)
 		"	[--clearstats] | [--shuntstatus] | [--fipsstatus] | [--briefstatus] \n"
 		"\n"
 		"refresh dns: whack --ddns\n"
+		"Hibernation: whack (--hibernate <conname>)\n"
+		"Resumption: whack(--resume <connname>)\n"
 		"\n"
 #ifdef HAVE_SECCOMP
 		"testing: whack --seccomp-crashtest (CAREFUL!)\n"
@@ -347,6 +349,8 @@ enum option_enums {
 	OPT_XAUTHPASS,
 	OPT_WHACKRECORD,
 	OPT_WHACKSTOPRECORD,
+	OPT_HIBERNATE,
+	OPT_RESUME,
 
 #define OPT_LAST2 OPT_WHACKSTOPRECORD	/* last "normal" option, range 2 */
 
@@ -587,6 +591,8 @@ static const struct option long_opts[] = {
 	{ "oppodport", required_argument, NULL, OPT_OPPO_DPORT + OO },
 
 	{ "asynchronous", no_argument, NULL, OPT_ASYNC + OO },
+	{ "hibernate", required_argument, NULL, OPT_HIBERNATE + OO },
+	{ "resume", required_argument, NULL, OPT_RESUME + OO },
 
 	/* list options */
 
@@ -1412,6 +1418,12 @@ int main(int argc, char **argv)
 		case OPT_ASYNC:	/* --asynchronous */
 			msg.whack_async = TRUE;
 			continue;
+		case OPT_HIBERNATE:
+		    msg.whack_hibernate = TRUE;
+			msg.name = optarg; /*<conname> is taken as arg*/
+		case OPT_RESUME:
+		    msg.whack_resume = TRUE;
+			msg.name = optarg; /*<conname> is taken as arg*/
 
 		/* List options */
 
