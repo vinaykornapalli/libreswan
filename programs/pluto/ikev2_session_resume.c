@@ -123,7 +123,14 @@ void hibernate_connection(struct connection *c) {
 void resume_connection(struct connection *c) {
 
 /*The state should be recovered and session resumption exchange starts*/
-   struct state
+   struct state *pst = state_with_serialno(c->newest_isakmp_sa);
+
+   if(pst!=NULL && pst->st_hibernated == TRUE) {
+       pst->st_hibernated = FALSE;
+       change_state(pst->st_state, STATE_PARENT_RESUME);
+       /* Session-Resumption Exchange type should be started from here*/
+   }
+   
 }
 
 
