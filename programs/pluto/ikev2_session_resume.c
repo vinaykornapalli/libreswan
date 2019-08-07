@@ -105,11 +105,17 @@ void hibernate_connection(struct connection *c) {
     struct state *cst = state_with_serialno(c->newest_ipsec_sa);
 
     /* Deleting the child sa of the current state */
-    event_force(EVENT_SA_EXPIRE, cst);
-    /* Marking parent state as hibernated */
-    pst->st_hibernated = TRUE;
-    /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-    change_state(pst->st_state, STATE_PARENT_HIBERNATED);
+    if(cst!=NULL) {
+         event_force(EVENT_SA_EXPIRE, cst);
+    }
+     
+    if(pst!=NULL) {
+        /* Marking parent state as hibernated */
+        pst->st_hibernated = TRUE;
+        /* State should be tranistioned in STATE_PARENT_HIBERNATED */
+        change_state(pst->st_state, STATE_PARENT_HIBERNATED);
+    }
+   
 }
 
 
@@ -117,7 +123,7 @@ void hibernate_connection(struct connection *c) {
 void resume_connection(struct connection *c) {
 
 /*The state should be recovered and session resumption exchange starts*/
-
+   struct state
 }
 
 
