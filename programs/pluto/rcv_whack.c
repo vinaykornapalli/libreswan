@@ -602,8 +602,8 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 	 } else {
 		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
 		if (c == NULL) {
-            whack_log(RC_UNKNOWN_NAME, "Connection with given name not found,
-			            try again with valid name");
+            whack_log(RC_UNKNOWN_NAME, 
+			"Connection with given name not found, try again with valid name");
 		} else {
              hibernate_connection(c);
 		}
@@ -617,8 +617,8 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 	 } else {
 		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
 		if (c == NULL) {
-            whack_log(RC_UNKNOWN_NAME, "Connection with given name not found,
-			            try again with valid name");
+            whack_log(RC_UNKNOWN_NAME,
+			 "Connection with given name not found,try again with valid name");
 		} else {
              resume_connection(c);
 		}
