@@ -59,7 +59,7 @@
 
 chunk_t *st_to_ticket(const struct state *st) {
 
-    struct ticket_payload *ticket_payl = alloc_bytes(sizeof(struct ticket_payload));
+    struct ticket_payload *ticket_payl = alloc_bytes(sizeof(struct ticket_payload) , "Ticket Payload");
 
        struct ticket_by_value tk ;
 
@@ -84,28 +84,31 @@ chunk_t *st_to_ticket(const struct state *st) {
            /* SPIr */
            memcpy(&ts.SPIr, st->st_ike_spis.responder.bytes, IKE_SA_SPI_SIZE);
 
-           /*SKEYSEED OLD*/
+           /*SKEYSEED OLD
+           currently some issue with it
            memcpy(ts.st_skey_d_nss, st->st_skey_d_nss, sizeof(PK11SymKey));
+           */
 
            /* All the IKE negotiations */
 
-           memcpy(&ts.st_oakley, st->st_oakley, sizeof(trans_attrs));
+           memcpy(&ts.st_oakley, &(st->st_oakley), sizeof(struct trans_attrs));
 
             tk.ike_tk_state = ts;
        }
 
       
 
-       memcpy(&ticket_payl->ticket.tk_by_value , &tk , sizeof(ticket_by_value));
+       memcpy(&ticket_payl->ticket.tk_by_value , &tk , sizeof(struct ticket_by_value));
        
     
-    chunk_t *ticket_payl_chunk = chunk(ticket_payl , sizeof(ticket_payload));
+    chunk_t *ticket_payl_chunk = chunk(ticket_payl , sizeof(struct ticket_payload));
     return ticket_payl_chunk;
 }
-
-struct state *ticket_to_st(const struct chunk_t *ticket) {
+/*
+struct state *ticket_to_st(const chunk_t *ticket) {
 
 }
+*/
 
 
 void ikev2_session_resume_outI1(fd_t whack_sock,
@@ -165,25 +168,14 @@ void hibernate_connection(struct connection *c) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-        change_state(pst->st_state, STATE_PARENT_HIBERNATED);
+        change_state(pst, STATE_PARENT_HIBERNATED);
     }
    
 }
 
 
 
-void resume_connection(struct connection *c) {
 
-/*The state should be recovered and session resumption exchange starts*/
-   struct state *pst = state_with_serialno(c->newest_isakmp_sa);
-
-   if(pst!=NULL && pst->st_hibernated == TRUE) {
-       pst->st_hibernated = FALSE;
-       change_state(pst->st_state, STATE_PARENT_RESUME);
-       /* Session-Resumption Exchange type should be started from here*/
-   }
-
-}
 
 
 

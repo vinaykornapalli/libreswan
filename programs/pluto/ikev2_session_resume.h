@@ -109,6 +109,5 @@ void ikev2_session_resume_outI1(fd_t whack_sock,
 
 /* Functions related to hibernate/resume connection */
 void hibernate_connection(struct connection *c);
-void resume_connection(struct connection *c);
 
 #endif
