@@ -90,6 +90,7 @@ kvmplutotest	algparse-02-fips			good
 kvmplutotest	libipsecconf-01				good
 kvmplutotest	libipsecconf-02				good
 kvmplutotest	libipsecconf-04				good
+kvmplutotest	libipsecconf-05-empty_option		wip
 
 #################################################################
 # Whack UI tests
@@ -353,6 +354,8 @@ kvmplutotest	ikev2-x509-26-criticalflag		good
 kvmplutotest	ikev2-x509-27-criticalflag-clientAuth	good
 kvmplutotest	ikev2-x509-28-del-nssdb-cert		good
 kvmplutotest	ikev2-x509-30-mismatch-ignore		good
+kvmplutotest	ikev2-x509-31-wifi-assist		wip
+kvmplutotest	ikev2-x509-32-id-any			good
 
 kvmplutotest	ikev2-no-nhelpers-01			good
 
@@ -494,6 +497,7 @@ kvmplutotest	certoe-12-nat-server			good
 kvmplutotest	certoe-13-poc-del-slash24		good
 kvmplutotest	certoe-14-poc-del-slash32		good
 kvmplutotest	certoe-15-poc-east-west			good
+kvmplutotest	certoe-17-asymmetric-cert-nat		good
 kvmplutotest	rawrsaoe-asymmetric-nat			good
 kvmplutotest	rawrsaoe-asymmetric-01			good
 
@@ -993,9 +997,6 @@ kvmplutotest	ikev2-leak-02-no-psk		good
 #################################################################
 kvmplutotest	ikev2-algo-08-cast				skiptest
 kvmplutotest	netkey-algo-cast-01				skiptest
-kvmplutotest	interop-ikev1-strongswan-09-dh22-initiator	skiptest
-kvmplutotest	interop-ikev1-strongswan-05-dh24-responder	skiptest
-kvmplutotest	interop-ikev1-strongswan-06-dh24-initiator	skiptest
 
 # seccomp
 kvmplutotest	seccomp-01-enabled		good
@@ -1038,3 +1039,23 @@ kvmplutotest 	interop-ikev2-strongswan-38-mobike-initiator	good
 kvmplutotest 	interop-ikev2-strongswan-39-mobike-responder	good
 
 kvmplutotest	bad-nexthop-01		wip
+
+# Kernel interops
+
+kvmplutotest	algo-ah-klips-to-klips-ikev1			good
+kvmplutotest	algo-ah-klips-to-klips-ikev2			good
+kvmplutotest	algo-ah-klips-to-netkey-ikev1			good
+kvmplutotest	algo-ah-klips-to-netkey-ikev2			good
+kvmplutotest	algo-ah-netkey-to-klips-ikev1			good
+kvmplutotest	algo-ah-netkey-to-klips-ikev2			good
+kvmplutotest	algo-ah-netkey-to-netkey-ikev1			good
+kvmplutotest	algo-ah-netkey-to-netkey-ikev2			good
+
+kvmplutotest	algo-esp-klips-to-klips-ikev1			wip
+kvmplutotest	algo-esp-klips-to-klips-ikev2			wip
+kvmplutotest	algo-esp-klips-to-netkey-ikev1			wip
+kvmplutotest	algo-esp-klips-to-netkey-ikev2			wip
+kvmplutotest	algo-esp-netkey-to-klips-ikev1			good
+kvmplutotest	algo-esp-netkey-to-klips-ikev2			good
+kvmplutotest	algo-esp-netkey-to-netkey-ikev1			good
+kvmplutotest	algo-esp-netkey-to-netkey-ikev2			good

@@ -14,7 +14,7 @@ east #
  restorecon -R /etc/ipsec.d
 east #
  ipsec start
-Redirecting to: systemctl start ipsec.service
+Redirecting to: [initsystem]
 east #
  /testing/pluto/bin/wait-until-pluto-started
 east #
@@ -49,29 +49,29 @@ east #
 006 #2: "clear-or-private#192.1.2.0/24"[1] ...192.1.2.254===10.0.10.1/32, type=ESP, add_time=1234567890, inBytes=168, outBytes=168, id='ID_NULL', lease=10.0.10.1/32
 006 #4: "clear-or-private#192.1.2.0/24"[2] ...192.1.2.254===10.0.10.2/32, type=ESP, add_time=1234567890, inBytes=168, outBytes=168, id='ID_NULL', lease=10.0.10.2/32
 east #
- ../../pluto/bin/ipsec-look.sh
+ ../../pluto/bin/ipsec-look.sh | sed "s/\(.\)port [0-9][0-9][0-9][0-9] /\1port XXXX /g"
 east NOW
 XFRM state:
 src 192.1.2.254 dst 192.1.2.23
 	proto esp spi 0xSPISPI reqid REQID mode tunnel
 	replay-window 32 flag af-unspec
 	aead rfc4106(gcm(aes)) 0xENCAUTHKEY 128
-	encap type espinudp sport 2501 dport 4500 addr 0.0.0.0
+	encap type espinudp sport XXXX dport XXXX addr 0.0.0.0
 src 192.1.2.23 dst 192.1.2.254
 	proto esp spi 0xSPISPI reqid REQID mode tunnel
 	replay-window 32 flag af-unspec
 	aead rfc4106(gcm(aes)) 0xENCAUTHKEY 128
-	encap type espinudp sport 4500 dport 2501 addr 0.0.0.0
+	encap type espinudp sport XXXX dport XXXX addr 0.0.0.0
 src 192.1.2.254 dst 192.1.2.23
 	proto esp spi 0xSPISPI reqid REQID mode tunnel
 	replay-window 32 flag af-unspec
 	aead rfc4106(gcm(aes)) 0xENCAUTHKEY 128
-	encap type espinudp sport 2500 dport 4500 addr 0.0.0.0
+	encap type espinudp sport XXXX dport XXXX addr 0.0.0.0
 src 192.1.2.23 dst 192.1.2.254
 	proto esp spi 0xSPISPI reqid REQID mode tunnel
 	replay-window 32 flag af-unspec
 	aead rfc4106(gcm(aes)) 0xENCAUTHKEY 128
-	encap type espinudp sport 4500 dport 2500 addr 0.0.0.0
+	encap type espinudp sport XXXX dport XXXX addr 0.0.0.0
 XFRM policy:
 src 10.0.10.1/32 dst 192.1.2.23/32
 	dir fwd priority 1564639 ptype main
@@ -123,7 +123,6 @@ default via 192.1.2.254 dev eth1
 192.0.1.0/24 via 192.1.2.45 dev eth1
 192.0.2.0/24 dev eth0 proto kernel scope link src 192.0.2.254
 192.1.2.0/24 dev eth1 proto kernel scope link src 192.1.2.23
-192.9.2.0/24 dev eth2 proto kernel scope link src 192.9.2.23
 NSS_CERTIFICATES
 Certificate Nickname                                         Trust Attributes
                                                              SSL,S/MIME,JAR/XPI

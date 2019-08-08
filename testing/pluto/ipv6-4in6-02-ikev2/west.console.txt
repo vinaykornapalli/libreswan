@@ -16,7 +16,7 @@ west #
 down
 west #
  ipsec start
-Redirecting to: systemctl start ipsec.service
+Redirecting to: [initsystem]
 west #
  /testing/pluto/bin/wait-until-pluto-started
 west #
@@ -106,18 +106,6 @@ src ::/0 dst ::/0
 src ::/0 dst ::/0 
 	socket out priority 0 ptype main 
 src ::/0 dst ::/0 
-	socket in priority 0 ptype main 
-src ::/0 dst ::/0 
-	socket out priority 0 ptype main 
-src ::/0 dst ::/0 
-	socket in priority 0 ptype main 
-src 0.0.0.0/0 dst 0.0.0.0/0 
-	socket out priority 0 ptype main 
-src 0.0.0.0/0 dst 0.0.0.0/0 
-	socket in priority 0 ptype main 
-src 0.0.0.0/0 dst 0.0.0.0/0 
-	socket out priority 0 ptype main 
-src 0.0.0.0/0 dst 0.0.0.0/0 
 	socket in priority 0 ptype main 
 src 0.0.0.0/0 dst 0.0.0.0/0 
 	socket out priority 0 ptype main 

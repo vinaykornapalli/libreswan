@@ -73,7 +73,7 @@
 #include "ikev2.h"
 #include "ikev2_send.h"
 #include "ikev1_xauth.h"
-
+#include "ip_info.h"
 #include "vendor.h"
 #include "nat_traversal.h"
 #include "virtual.h"	/* needs connections.h */
@@ -404,17 +404,13 @@ bool extract_peer_id(enum ike_id_type kind, struct id *peer, const pb_stream *id
 	case ID_IPV6_ADDR:
 		/* failure mode for initaddr is probably inappropriate address length */
 	{
-		err_t ugh = initaddr(id_pbs->cur, left,
-				peer->kind == ID_IPV4_ADDR ? AF_INET : AF_INET6,
-				&peer->ip_addr);
-
-		if (ugh != NULL) {
-			loglog(RC_LOG_SERIOUS,
-				"improper %s identification payload: %s",
-				enum_show(&ike_idtype_names, kind),
-				ugh);
+		struct pbs_in in_pbs = *id_pbs;
+		if (!pbs_in_address(&peer->ip_addr,
+				    (peer->kind == ID_IPV4_ADDR ? &ipv4_info :
+				     &ipv6_info),
+				    &in_pbs, "peer ID")) {
 			/* XXX Could send notification back */
-			return FALSE;
+			return false;
 		}
 	}
 	break;
@@ -480,15 +476,22 @@ void initialize_new_state(struct state *st,
 {
 	update_state_connection(st, c);
 
+#ifdef HAVE_LABELED_IPSEC
+	/*
+	 * XXX: delete this?  aggr_outI1() had .sec_ctx=NULL, but
+	 * since the state was just created it can only be NULL.
+	 */
+	pexpect(st->sec_ctx == NULL);
+#endif
+
 	set_state_ike_endpoints(st, c);
 
 	st->st_policy = policy & ~POLICY_IPSEC_MASK;        /* clear bits */
 	st->st_whack_sock = whack_sock;
 	st->st_try = try;
 
-	const struct spd_route *sr;
-
-	for (sr = &c->spd; sr != NULL; sr = sr->spd_next) {
+	for (const struct spd_route *sr = &c->spd;
+	     sr != NULL; sr = sr->spd_next) {
 		if (sr->this.xauth_client) {
 			if (sr->this.xauth_username != NULL) {
 				jam_str(st->st_xauth_username, sizeof(st->st_xauth_username), sr->this.xauth_username);

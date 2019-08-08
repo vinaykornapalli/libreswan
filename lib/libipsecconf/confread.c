@@ -178,14 +178,14 @@ static void ipsecconf_default_values(struct starter_config *cfg)
 		POLICY_ESN_NO;      	     /* esn=no */
 
 	d->left.addr_family = AF_INET;
-	anyaddr(AF_INET, &d->left.addr);
+	d->left.addr = address_any(AF_INET);
 	d->left.nexttype = KH_NOTSET;
-	anyaddr(AF_INET, &d->left.nexthop);
+	d->left.nexthop = address_any(AF_INET);
 
 	d->right.addr_family = AF_INET;
-	anyaddr(AF_INET, &d->right.addr);
+	d->right.addr = address_any(AF_INET);
 	d->right.nexttype = KH_NOTSET;
-	anyaddr(AF_INET, &d->right.nexthop);
+	d->right.nexthop = address_any(AF_INET);
 
 	/* default is NOT to look in DNS */
 	d->left.key_from_DNS_on_demand = FALSE;
@@ -433,7 +433,7 @@ static bool validate_end(struct starter_conn *conn_st,
 	/* validate the KSCF_IP/KNCF_IP */
 	switch (end->addrtype) {
 	case KH_ANY:
-		anyaddr(hostfam, &end->addr);
+		end->addr = address_any(hostfam);
 		break;
 
 	case KH_IFACE:
@@ -549,8 +549,7 @@ static bool validate_end(struct starter_conn *conn_st,
 	}
 
 	/* set nexthop address to something consistent, by default */
-	anyaddr(hostfam, &end->nexthop);
-	anyaddr(addrtypeof(&end->addr), &end->nexthop);
+	end->nexthop = address_any(address_type(&end->addr));
 
 	/* validate the KSCF_NEXTHOP */
 	if (end->strings_set[KSCF_NEXTHOP]) {
@@ -585,7 +584,7 @@ static bool validate_end(struct starter_conn *conn_st,
 			end->nexttype = KH_IPADDR;
 		}
 	} else {
-		anyaddr(hostfam, &end->nexthop);
+		end->nexthop = address_any(hostfam);
 
 		if (end->addrtype == KH_DEFAULTROUTE) {
 			end->nexttype = KH_DEFAULTROUTE;
@@ -1199,7 +1198,7 @@ static bool load_conn(
 	if (conn->options_set[KSCF_AUTHBY]) {
 
 		conn->policy &= ~POLICY_ID_AUTH_MASK;
-		conn->sighash_policy = POL_SIGHASH_NONE;
+		conn->sighash_policy = LEMPTY;
 	}
 
 	KW_POLICY_NEGATIVE_FLAG(KNCF_IKEPAD, POLICY_NO_IKEPAD);
@@ -1430,7 +1429,7 @@ static bool load_conn(
 				conn->policy |= POLICY_PSK;
 			} else if (streq(val, "rsasig") || streq(val, "rsa")) {
 				conn->policy |= POLICY_RSASIG;
-				conn->sighash_policy |= POL_SIGHASH_NONE;
+				conn->sighash_policy = LEMPTY;
 			} else if (streq(val, "never")) {
 				conn->policy |= POLICY_AUTH_NEVER;
 			/* everything else is only supported for IKEv2 */

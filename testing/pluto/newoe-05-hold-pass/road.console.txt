@@ -13,7 +13,7 @@ PING 7.7.7.7 (7.7.7.7) from 192.1.3.209 : 56(84) bytes of data.
 rtt min/avg/max/mdev = 0.XXX/0.XXX/0.XXX/0.XXX ms
 road #
  ipsec start
-Redirecting to: systemctl start ipsec.service
+Redirecting to: [initsystem]
 road #
  # ensure for tests acquires expire before our failureshunt=2m
 road #
@@ -394,7 +394,6 @@ road #
 000 192.1.3.209/32:0 -0-> 7.7.7.7/32:0 => %pass 0    oe-failed
 road #
  killall ip > /dev/null 2> /dev/null
-[1]+  Terminated              ip -s xfrm monitor > /tmp/xfrm-monitor.out
 road #
  cp /tmp/xfrm-monitor.out OUTPUT/road.xfrm-monitor.txt
 road #

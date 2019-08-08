@@ -238,7 +238,6 @@ static void free_dead_ifaces(void)
 	for (p = interfaces; p != NULL; p = p->next) {
 		if (p->change == IFN_DELETE) {
 			endpoint_buf b;
-			pexpect_iface_port(p);
 			libreswan_log("shutting down interface %s/%s %s",
 				      p->ip_dev->id_vname,
 				      p->ip_dev->id_rname,
@@ -1011,7 +1010,6 @@ void find_ifaces(bool rm_dead)
 							     comm_handle_cb,
 							     ifp, "ethX");
 			endpoint_buf b;
-			pexpect_iface_port(ifp);
 			dbg("setup callback for interface %s %s fd %d",
 			    ifp->ip_dev->id_rname,
 			    str_endpoint(&ifp->local_endpoint, &b),
@@ -1020,14 +1018,13 @@ void find_ifaces(bool rm_dead)
 	}
 }
 
-struct iface_port *lookup_iface_ip(ip_address *ip, uint16_t port)
+struct iface_port *find_iface_port_by_local_endpoint(ip_endpoint *local_endpoint)
 {
-	struct iface_port *p;
-	for (p = interfaces; p != NULL; p = p->next) {
-		if (sameaddr(ip, &p->ip_addr) && (p->port == port))
+	for (struct iface_port *p = interfaces; p != NULL; p = p->next) {
+		if (endpoint_eq(*local_endpoint, p->local_endpoint)) {
 			return p;
+		}
 	}
-
 	return NULL;
 }
 
@@ -1037,7 +1034,6 @@ void show_ifaces_status(void)
 
 	for (p = interfaces; p != NULL; p = p->next) {
 		endpoint_buf b;
-		pexpect_iface_port(p);
 		whack_log(RC_COMMENT, "interface %s/%s %s",
 			  p->ip_dev->id_vname, p->ip_dev->id_rname,
 			  str_endpoint(&p->local_endpoint, &b));
@@ -1749,26 +1745,14 @@ static bool check_msg_errqueue(const struct iface_port *ifp, short interest, con
 					break;
 				}
 
-#define LOG(buf)							\
-				{					\
-					endpoint_buf epb;		\
-					pexpect_iface_port(ifp);	\
-					lswlogf(buf,			\
-						"ERROR: asynchronous network error report on %s (%s)%s, complainant %s: %s [errno %" PRIu32 ", origin %s]", \
-						ifp->ip_dev->id_rname,	\
-						str_endpoint(&ifp->local_endpoint, &epb), \
-						fromstr,		\
-						offstr,			\
-						strerror(ee->ee_errno),	\
-						ee->ee_errno, orname);	\
-				}
-
+				log_raw_fn *logger;
 				if (packet_len == 1 && buffer[0] == 0xff &&
 				    (cur_debugging & DBG_NATT) == 0) {
 					/*
 					 * don't log NAT-T keepalive related errors unless NATT debug is
 					 * enabled
 					 */
+					logger = NULL;
 				} else if (sender != NULL && sender->st_connection != NULL &&
 					   LDISJOINT(sender->st_connection->policy, POLICY_OPPORTUNISTIC)) {
 					/*
@@ -1794,9 +1778,7 @@ static bool check_msg_errqueue(const struct iface_port *ifp, short interest, con
 					 * explicit parameter to the
 					 * logging system?
 					 */
-					LSWLOG_STATE(sender, buf) {
-						LOG(buf);
-					}
+					logger = loglog_raw;
 				} else {
 					/*
 					 * Since this output is forced
@@ -1807,10 +1789,19 @@ static bool check_msg_errqueue(const struct iface_port *ifp, short interest, con
 					 * matter - it just gets
 					 * ignored.
 					 */
-					LSWDBGP_STATE(DBG_OPPO, sender, buf) {
-						LOG(buf);
-					}
-#undef LOG
+					logger = DBG_raw;
+				}
+				if (logger != NULL) {
+					endpoint_buf epb;
+					logger(RC_COMMENT, sender/*could be null*/,
+					       NULL/*connection*/, NULL/*endpoint*/,
+					       "ERROR: asynchronous network error report on %s (%s)%s, complainant %s: %s [errno %" PRIu32 ", origin %s]",
+					       ifp->ip_dev->id_rname,
+					       str_endpoint(&ifp->local_endpoint, &epb),
+					       fromstr,
+					       offstr,
+					       strerror(ee->ee_errno),
+					       ee->ee_errno, orname);
 				}
 			} else if (cm->cmsg_level == SOL_IP &&
 				   cm->cmsg_type == IP_PKTINFO) {

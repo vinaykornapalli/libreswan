@@ -13,9 +13,25 @@ KVM_INSTALL_RPM_LIST = 'rpm -aq > /var/tmp/rpm-qa-fedora-updates.log'
 # writing) seem to work.
 
 # NSS_VERSION = -3.36.0-1.0.fc28.x86_64
-NSS_VERSION =
+NSS_VERSION ?=
 
-KVM_PACKAGES = \
+# The kernel packages can only be installed.  To stop a new version
+# being installed set this to empty.
+
+KVM_KERNEL_VERSION ?=
+KVM_KERNEL_PACKAGES ?= \
+    kernel$(KVM_KERNEL_VERSION) \
+    kernel-core$(KVM_KERNEL_VERSION) \
+    kernel-modules$(KVM_KERNEL_VERSION) \
+    kernel-devel$(KVM_KERNEL_VERSION) \
+    kernel-headers$(KVM_KERNEL_VERSION) \
+    kernel-modules-extra$(KVM_KERNEL_VERSION)
+
+KVM_INSTALL_PACKAGES ?= \
+    $(KVM_KERNEL_PACKAGES) \
+    $(KVM_UPGRADE_PACKAGES)
+
+KVM_UPGRADE_PACKAGES ?= \
     ElectricFence \
     audit-libs-devel \
     bind-utils	\
@@ -25,20 +41,17 @@ KVM_PACKAGES = \
     elfutils-libelf-devel \
     fipscheck-devel \
     flex \
+    fping \
     gcc \
     gdb \
     git \
     glibc-devel \
     hping3 \
     ike-scan \
-    kernel-core \
-    kernel-devel \
-    kernel-headers \
-    kernel-modules \
-    kernel-modules-extra \
     iproute \
     ipsec-tools \
     iptables \
+    iputils \
     ldns \
     ldns-devel \
     libcap-ng-devel \
@@ -67,9 +80,8 @@ KVM_PACKAGES = \
     pexpect \
     policycoreutils-python-utils \
     psmisc \
-    python2-pyOpenSSL \
+    python3-pyOpenSSL \
     python3-pexpect \
-    python-setproctitle \
     racoon2 \
     rpm-build \
     screen \

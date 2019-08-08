@@ -14,7 +14,7 @@ road #
  restorecon -R /etc/ipsec.d
 road #
  ipsec start
-Redirecting to: systemctl start ipsec.service
+Redirecting to: [initsystem]
 road #
  /testing/pluto/bin/wait-until-pluto-started
 road #
@@ -142,7 +142,6 @@ target     prot opt source               destination
 SNAT       all  --  0.0.0.0/0            192.1.2.23           policy match dir out pol ipsec to:10.0.10.1
 road #
  killall ip > /dev/null 2> /dev/null
-[1]+  Terminated              ip -s xfrm monitor > /tmp/xfrm-monitor.out
 road #
  cp /tmp/xfrm-monitor.out OUTPUT/road.xfrm-monitor.txt
 road #

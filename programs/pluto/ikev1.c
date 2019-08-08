@@ -1072,11 +1072,19 @@ static stf_status informational(struct state *st, struct msg_digest *md)
 				loglog(RC_LOG_SERIOUS,
 					"ignoring ISAKMP_N_CISCO_LOAD_BALANCE Informational Message without IPv4 address");
 			} else {
-				ip_address new_peer;
+				/*
+				 * Copy (not cast) the last 4 bytes
+				 * (size of an IPv4) address from the
+				 * end of the notification into IN
+				 * (can't cast as can't assume that
+				 * ->roof-4 is correctly aligned).
+				 */
+				struct in_addr in;
+				memcpy(&in, n_pbs->roof - sizeof(in), sizeof(in));
+				ip_address new_peer = address_from_in_addr(&in);
 
-				(void)initaddr(n_pbs->roof - 4, 4, AF_INET, &new_peer);
-
-				if (isanyaddr(&new_peer)) {
+				/* is all zeros? */
+				if (address_is_any(&new_peer)) {
 					ipstr_buf b;
 
 					loglog(RC_LOG_SERIOUS,
@@ -2780,6 +2788,7 @@ void complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 		if (nat_traversal_enabled && st->st_connection->ikev1_natt != NATT_NONE) {
 			/* adjust our destination port if necessary */
 			nat_traversal_change_port_lookup(md, st);
+			v1_maybe_natify_initiator_endpoints(st, HERE);
 		}
 
 		/*
@@ -2801,7 +2810,7 @@ void complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 		if (smc->flags & SMF_REPLY) {
 			ipstr_buf b;
 			endpoint_buf b2;
-			pexpect_iface_port(st->st_interface);
+			pexpect_st_local_endpoint(st);
 			dbg("sending reply packet to %s:%u (from %s)",
 			    ipstr(&st->st_remoteaddr, &b),
 			    st->st_remoteport,

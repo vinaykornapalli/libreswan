@@ -146,8 +146,6 @@ int main(int argc, char **argv)
 	/*struct sockaddr_in pfkey_address_d_ska;*/
 	ip_address pfkey_address_sflow_ska;
 	ip_address pfkey_address_dflow_ska;
-	ip_address pfkey_address_smask_ska;
-	ip_address pfkey_address_dmask_ska;
 
 	int transport_proto = 0;
 	int src_port = 0;
@@ -165,8 +163,6 @@ int main(int argc, char **argv)
 	zero(&pfkey_address_s_ska);
 	zero(&pfkey_address_sflow_ska);
 	zero(&pfkey_address_dflow_ska);
-	zero(&pfkey_address_smask_ska);
-	zero(&pfkey_address_dmask_ska);
 	zero(&said);
 	zero(&s_subnet);
 	zero(&d_subnet);
@@ -494,27 +490,18 @@ int main(int argc, char **argv)
 
 	if (argcount == 1) {
 		struct stat sts;
+		int ret = 1;
 
-		if (stat("/proc/sys/net/core/xfrm_acq_expires", &sts) == 0) {
+		if (stat("/proc/net/ipsec_eroute", &sts) != 0) {
 			fprintf(stderr,
-				"%s: NETKEY does not support eroute table.\n",
+				"%s: No eroute table - no KLIPS IPsec support in kernel\n",
 				progname);
-
-			exit(1);
 		} else {
-			int ret = 1;
-
-			if (stat("/proc/net/ipsec_eroute", &sts) != 0) {
-				fprintf(stderr,
-					"%s: No eroute table - no IPsec support in kernel (are the modules loaded?)\n",
-					progname);
-			} else {
-				ret = system("cat /proc/net/ipsec_eroute");
-				ret = ret != -1 &&
-				      WIFEXITED(ret) ? WEXITSTATUS(ret) : 1;
-			}
-			exit(ret);
+			ret = system("cat /proc/net/ipsec_eroute");
+			ret = ret != -1 &&
+			      WIFEXITED(ret) ? WEXITSTATUS(ret) : 1;
 		}
+		exit(ret);
 	}
 
 	/* Sanity checks */
@@ -556,32 +543,32 @@ int main(int argc, char **argv)
 	if (src_port_opt != NULL) {
 		struct servent * ent = getservbyname(src_port_opt, 0);
 		if (ent != 0) {
-			src_port = ent->s_port;
+			src_port = ntohs(ent->s_port);
 		} else {
-			error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
+			err_t error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
 			if (error_s != NULL) {
 				fprintf(stderr,
 					"%s: Invalid --src-port parameter \"%s\": %s\n",
 					progname, src_port_opt, error_s);
 				exit(1);
 			}
-			src_port = htons(u);
+			src_port = u;
 		}
 	}
 
 	if (dst_port_opt != NULL) {
 		struct servent * ent = getservbyname(dst_port_opt, 0);
 		if (ent != 0) {
-			dst_port = ent->s_port;
+			dst_port = ntohs(ent->s_port);
 		} else {
-			error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
+			err_t error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
 			if (error_s != NULL) {
 				fprintf(stderr,
 					"%s: Invalid --dst-port parameter \"%s\": %s\n",
 					progname, src_port_opt, error_s);
 				exit(1);
 			}
-			dst_port = htons(u);
+			dst_port = u;
 		}
 	}
 
@@ -714,7 +701,7 @@ sa_build:
 	case EMT_REPLACEROUTE:
 	case EMT_INEROUTE:
 	case EMT_INREPLACEROUTE:
-		anyaddr(said_af, &pfkey_address_s_ska);
+		pfkey_address_s_ska = address_any(said_af);
 		error = pfkey_address_build(
 				&extensions[SADB_EXT_ADDRESS_SRC],
 				SADB_EXT_ADDRESS_SRC,
@@ -767,8 +754,13 @@ sa_build:
 	case EMT_INEROUTE:
 	case EMT_INREPLACEROUTE:
 	case EMT_DELEROUTE:
-		networkof(&s_subnet, &pfkey_address_sflow_ska); /* src flow */
-		add_port(eroute_af, &pfkey_address_sflow_ska, src_port);
+	{
+		if (subnet_info(&s_subnet) == NULL) {
+			fprintf(stderr, "%s: source subnet not specified\n", progname);
+			exit(1);
+		}
+		ip_endpoint s_flow = subnet_endpoint(&s_subnet);
+		pfkey_address_sflow_ska = set_endpoint_port(&s_flow, src_port); /* src flow */
 		error = pfkey_address_build(
 				&extensions[SADB_X_EXT_ADDRESS_SRC_FLOW],
 				SADB_X_EXT_ADDRESS_SRC_FLOW,
@@ -790,8 +782,12 @@ sa_build:
 				progname);
 		}
 
-		networkof(&d_subnet, &pfkey_address_dflow_ska); /* dst flow */
-		add_port(eroute_af, &pfkey_address_dflow_ska, dst_port);
+		if (subnet_info(&d_subnet) == NULL) {
+			fprintf(stderr, "%s: destination subnet not specified.\n", progname);
+			exit(1);
+		}
+		ip_endpoint d_flow = subnet_endpoint(&d_subnet);
+		pfkey_address_dflow_ska = set_endpoint_port(&d_flow, dst_port); /* dst flow */
 		error = pfkey_address_build(
 				&extensions[SADB_X_EXT_ADDRESS_DST_FLOW],
 				SADB_X_EXT_ADDRESS_DST_FLOW,
@@ -813,9 +809,8 @@ sa_build:
 				progname);
 		}
 
-		maskof(&s_subnet, &pfkey_address_smask_ska); /* src mask */
-		add_port(eroute_af, &pfkey_address_smask_ska,
-			 src_port ? ~0 : 0);
+		ip_address s_mask = subnet_mask(&s_subnet); /* src mask */
+		ip_endpoint pfkey_address_smask_ska = endpoint(&s_mask, src_port ? ~0 : 0);
 		error = pfkey_address_build(
 				&extensions[SADB_X_EXT_ADDRESS_SRC_MASK],
 				SADB_X_EXT_ADDRESS_SRC_MASK,
@@ -837,9 +832,8 @@ sa_build:
 				progname);
 		}
 
-		maskof(&d_subnet, &pfkey_address_dmask_ska); /* dst mask */
-		add_port(eroute_af, &pfkey_address_dmask_ska,
-			 dst_port ? ~0 : 0);
+		ip_address d_mask = subnet_mask(&d_subnet); /* dst mask */
+		ip_endpoint pfkey_address_dmask_ska = endpoint(&d_mask, dst_port ? ~0 : 0);
 		error = pfkey_address_build(
 				&extensions[SADB_X_EXT_ADDRESS_DST_MASK],
 					 SADB_X_EXT_ADDRESS_DST_MASK,
@@ -861,6 +855,7 @@ sa_build:
 				"%s: DEBUG: pfkey_address_build successful for dst mask.\n",
 				progname);
 		}
+	}
 	}
 
 	if (transport_proto != 0) {

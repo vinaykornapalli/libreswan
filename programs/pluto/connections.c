@@ -86,7 +86,7 @@
 #include "crypto.h"
 #include "kernel_netlink.h"
 #include "ip_address.h"
-#include "af_info.h"
+#include "ip_info.h"
 #include "keyhi.h" /* for SECKEY_DestroyPublicKey */
 #include "state_db.h"
 
@@ -352,7 +352,7 @@ void delete_every_connection(void)
 static err_t default_end(struct end *e, ip_address *dflt_nexthop)
 {
 	err_t ugh = NULL;
-	const struct af_info *afi = aftoinfo(addrtypeof(&e->host_addr));
+	const struct ip_info *afi = aftoinfo(addrtypeof(&e->host_addr));
 
 	if (afi == NULL)
 		return "unknown address family in default_end";
@@ -361,6 +361,7 @@ static err_t default_end(struct end *e, ip_address *dflt_nexthop)
 	if (e->id.kind == ID_NONE && !isanyaddr(&e->host_addr)) {
 		e->id.kind = afi->id_addr;
 		e->id.ip_addr = e->host_addr;
+		e->id.isanyid = TRUE; /* used to match id=%any */
 		e->has_id_wildcards = FALSE;
 	}
 
@@ -445,8 +446,8 @@ size_t format_end(char *buf,
 	if (this->has_client) {
 		ip_address client_net, client_mask;
 
-		networkof(&this->client, &client_net);
-		maskof(&this->client, &client_mask);
+		client_net = subnet_endpoint(&this->client);
+		client_mask = subnet_mask(&this->client);
 		client_sep = "===";
 
 		/* {client_subnet_wildcard} */
@@ -1155,24 +1156,24 @@ static bool extract_connection(const struct whack_message *wm, struct connection
 	}
 
 	if (wm->policy & POLICY_OPPORTUNISTIC &&
-	    c->ike_version != IKEv2) {
+	    c->ike_version == IKEv1) {
 		loglog(RC_FATAL, "Failed to add connection \"%s\": opportunistic connection MUST have ikev2",
 		       wm->name);
 		return false;
 	}
-	if (wm->sighash_policy != POL_SIGHASH_NONE &&
-	    c->ike_version != IKEv2) {
+	if (wm->sighash_policy != LEMPTY &&
+	    c->ike_version == IKEv1) {
 		loglog(RC_FATAL, "SIGHASH requires ikev2");
 		return false;
 	}
 
 	if (wm->policy & POLICY_MOBIKE &&
-	    c->ike_version != IKEv2) {
+	    c->ike_version == IKEv1) {
 		loglog(RC_FATAL, "MOBIKE requires ikev2");
 		return false;
 	}
 	if (wm->policy & POLICY_IKEV2_ALLOW_NARROWING &&
-	    c->ike_version != IKEv2) {
+	    c->ike_version == IKEv1) {
 		loglog(RC_FATAL, "narrowing=yes requires ikev2");
 		return false;
 	}
@@ -1209,7 +1210,7 @@ static bool extract_connection(const struct whack_message *wm, struct connection
 	} else {
 		/* reject all bad combinations of authby with leftauth=/rightauth= */
 		if (wm->left.authby != AUTH_UNSET || wm->right.authby != AUTH_UNSET) {
-			if (c->ike_version != IKEv2) {
+			if (c->ike_version == IKEv1) {
 				loglog(RC_FATAL,
 					"Failed to add connection \"%s\": leftauth= and rightauth= require ikev2",
 						wm->name);
@@ -2064,7 +2065,8 @@ static void jam_connection_client(jambuf_t *b,
 
 void jam_connection_instance(jambuf_t *buf, const struct connection *c)
 {
-	if (!pexpect(c->kind == CK_INSTANCE)) {
+	if (!pexpect(c->kind == CK_INSTANCE ||
+		     c->kind == CK_GOING_AWAY)) {
 		return;
 	}
 	if (c->instance_serial != 0) {
@@ -2088,7 +2090,7 @@ void jam_connection_instance(jambuf_t *buf, const struct connection *c)
 void jam_connection(struct lswlog *buf, const struct connection *c)
 {
 	jam(buf, "\"%s\"", c->name);
-	if (c->kind == CK_INSTANCE) {
+	if (c->kind == CK_INSTANCE || c->kind == CK_GOING_AWAY) {
 		jam_connection_instance(buf, c);
 	}
 }
@@ -3902,8 +3904,10 @@ void show_one_connection(const struct connection *c)
 	whack_log(RC_COMMENT,
 		"\"%s\"%s:   our idtype: %s; our id=%s; their idtype: %s; their id=%s",
 		c->name, instance,
-		enum_name(&ike_idtype_names_extended, c->spd.this.id.kind), thisid,
-		enum_name(&ike_idtype_names_extended, c->spd.that.id.kind), thatid);
+		enum_name(&ike_idtype_names_extended, c->spd.this.id.kind),
+		c->spd.this.id.isanyid ? "%any" : thisid,
+		enum_name(&ike_idtype_names_extended, c->spd.that.id.kind),
+		c->spd.that.id.isanyid ? "%any" : thatid);
 	}
 
 	/* slightly complicated stuff to avoid extra crap */

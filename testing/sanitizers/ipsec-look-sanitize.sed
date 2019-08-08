@@ -11,10 +11,11 @@ b end
   /^[a-z]* #/ b end
 
   # fix the date/time
-  s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} GMT [0-9]\{4\}/\1 NOW/
+  s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} CET [0-9]\{4\}/\1 NOW/
   s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} EST [0-9]\{4\}/\1 NOW/
-  s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} UTC [0-9]\{4\}/\1 NOW/
   s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} EDT [0-9]\{4\}/\1 NOW/
+  s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} GMT [0-9]\{4\}/\1 NOW/
+  s/^\([^ ]*\) ... ... *[0-9]* [0-9]\{2\}:[0-9]\{2\}:[0-9]\{2\} UTC [0-9]\{4\}/\1 NOW/
 
   # 192.0.1.0/24 dev eth0  proto kernel  scope link  src 192.0.1.254
   s/\(eth[0-9]\)  proto kernel  scope link  src/\1 proto kernel scope link src/g
@@ -22,10 +23,12 @@ b end
   # due to a kernel difference? Just ignore the error code in the routing table
   s/metric 1024 error -[0-9][0-9]*/metric 1024 error -XXXX/g
   s/metric 1024 error [0-9][0-9]*/metric 1024 error -XXXX/g
+  /^.* dev lo metric 1024.*$/d
 
   # fix up keys and other magic numbers; see also ip xfrm state
   s/ spi 0x[^ ]* / spi 0xSPISPI /g
   s/ reqid [0-9][0-9]* / reqid REQID /g
+  s/ sport [0-9][0-9][0-9][0-9][0-9] / sport SPORT /g
   s/\tauth\(.*\) 0x[^ ]* \(.*\)$/\tauth\1 0xHASHKEY \2/g
   s/\tenc \(.*\) 0x.*$/\tenc \1 0xENCKEY/g
   s/\taead \(.*\) 0x[^ ]*\( .*\)$/\taead \1 0xENCAUTHKEY\2/g
