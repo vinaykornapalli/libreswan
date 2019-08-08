@@ -1,16 +1,51 @@
 /*
  *  Helper functions and ticket store for IKEv2 Session Resumption
 */
-#include <stdio.h>
-#include <stddef.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <pk11pub.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+
+#include "sysdep.h"
+#include "constants.h"
+#include "lswlog.h"
+
+#include "defs.h"
+#include "id.h"
+#include "x509.h"
+#include "pluto_x509.h"
+#include "certs.h"
+#include "connections.h"        /* needs id.h */
 #include "state.h"
 #include "packet.h"
-#include "lswalloc.h"
-#include "state_db.h"
+#include "crypto.h"
+#include "crypt_symkey.h"
+#include "ike_alg.h"
+#include "log.h"
+#include "demux.h"      /* needs packet.h */
+#include "pluto_crypt.h"  /* for pluto_crypto_req & pluto_crypto_req_cont */
+#include "ikev2.h"
+#include "ipsec_doi.h"  /* needs demux.h and state.h */
 #include "timer.h"
+#include "whack.h"      /* requires connections.h */
+#include "server.h"
+#include "spdb.h"
+#include "nat_traversal.h"
+#include "vendor.h"
+#include "ip_address.h"
+#include "ikev2_send.h"
+#include "state_db.h"
+#include "ietf_constants.h"
+#include "ikev2_cookie.h"
+#include "plutoalg.h" /* for default_ike_groups */
+#include "ikev2_message.h"	/* for ikev2_decrypt_msg() */
+#include "pluto_stats.h"
+#include "keywords.h"
+#include "ikev2_msgid.h"
+#include "ip_endpoint.h"
+#include "hostpair.h"		/* for find_v2_host_connection() */
 #include "ikev2_session_resume.h"
 
 
