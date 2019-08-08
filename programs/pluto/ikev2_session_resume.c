@@ -1,6 +1,9 @@
 /*
  *  Helper functions and ticket store for IKEv2 Session Resumption
 */
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pk11pub.h>
 #include "state.h"
