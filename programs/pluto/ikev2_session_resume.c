@@ -110,6 +110,10 @@ struct state *ticket_to_st(const chunk_t *ticket) {
 
 
 stf_status ikev2_session_resume_outI1(struct connection *c, struct state *st) {
+
+    if(c == NULL){
+
+    }
     /* set up reply */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
                  "reply packet");
@@ -143,7 +147,8 @@ stf_status ikev2_session_resume_outI1(struct connection *c, struct state *st) {
 
     close_output_pbs(&reply_stream);
     record_outbound_ike_msg(st, &reply_stream, "Request packet for Session Resumption");
-    
+
+    return STF_OK;
 }
 
 
