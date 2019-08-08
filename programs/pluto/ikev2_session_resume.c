@@ -45,13 +45,11 @@
 #include "keywords.h"
 #include "ikev2_msgid.h"
 #include "ip_endpoint.h"
-#include "hostpair.h"		/* for find_v2_host_connection() */
+#include "hostpair.h"/* for find_v2_host_connection() */
+#include "send.h"
 #include "ikev2_session_resume.h"
 
 
-/* currently ticket by value is used */
-#define USE_TICKET_BY_VALUE 1
-#define USE_TICKET_BY_REFERENCE 0
 
 /* Functions for making and emitting ticket payload*/
 
@@ -111,10 +109,7 @@ struct state *ticket_to_st(const chunk_t *ticket) {
 */
 
 
-void ikev2_session_resume_outI1(fd_t whack_sock,
-			      struct connection *c,
-			      struct state *st
-			      ) {
+stf_status ikev2_session_resume_outI1(struct connection *c, struct state *st) {
     /* set up reply */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
                  "reply packet");
@@ -124,7 +119,7 @@ void ikev2_session_resume_outI1(fd_t whack_sock,
                                       NULL /* request */,
                                       ISAKMP_v2_IKE_SESSION_RESUME);
     if (!pbs_ok(&rbody)) {
-        return;
+        return STF_INTERNAL_ERROR;
     }
 
     /* send NONCE */
@@ -142,8 +137,8 @@ void ikev2_session_resume_outI1(fd_t whack_sock,
         close_output_pbs(&pb);
     }
     /* send TICKET_OPAQUE */
-    if (!emit_v2NChunk(v2N_TICKET_OPAQUE, &(st->ticket_stored), &rbody)) {
-			return;
+    if (!emit_v2Nchunk(v2N_TICKET_OPAQUE, &(st->ticket_stored), &rbody)) {
+			return STF_INTERNAL_ERROR;
 	}
 
     close_output_pbs(&reply_stream);
