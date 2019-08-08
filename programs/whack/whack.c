@@ -199,8 +199,8 @@ static void help(void)
 		"	[--clearstats] | [--shuntstatus] | [--fipsstatus] | [--briefstatus] \n"
 		"\n"
 		"refresh dns: whack --ddns\n"
-		"Hibernation: whack (--hibernate <conname>)\n"
-		"Resumption: whack(--resume <connname>)\n"
+		"Suspend session of a connection: whack (--suspend <conname>)\n"
+		"Resume session of a connection: whack(--resume <connname>)\n"
 		"\n"
 #ifdef HAVE_SECCOMP
 		"testing: whack --seccomp-crashtest (CAREFUL!)\n"
@@ -1421,9 +1421,15 @@ int main(int argc, char **argv)
 		case OPT_HIBERNATE:
 		    msg.whack_hibernate = TRUE;
 			msg.name = optarg; /*<conname> is taken as arg*/
+			continue;
 		case OPT_RESUME:
-		    msg.whack_resume = TRUE;
-			msg.name = optarg; /*<conname> is taken as arg*/
+		    if(msg.whack_hibernate) {
+				diag("Use only one of the flags i.e., --hibernate <conname> or --resume <conname>");
+			} else {
+                msg.whack_resume = TRUE;
+			    msg.name = optarg; /*<conname> is taken as arg*/
+			}
+			continue;
 
 		/* List options */
 

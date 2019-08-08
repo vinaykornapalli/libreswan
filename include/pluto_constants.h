@@ -44,6 +44,7 @@ enum ike_version {
 #define IKE_VERSION_ROOF 3
 };
 
+#define RESUME_TICKET_VERSION 1
 /*
  * IETF has no recommendations
  * FIPS SP800-77 sayas IKE max is 24h, IPsec max is 8h
@@ -357,6 +358,8 @@ typedef enum {
 
 #define PPK_ID_MAXLEN 64 /* fairly arbitrary */
 
+#define MAX_TICKET_SIZE 25000 /* which is fairly less to maximum udp packet length */
+
 /*
  * debugging settings: a set of selections for reporting These would
  * be more naturally situated in log.h, but they are shared with
@@ -661,7 +664,10 @@ enum state_kind {
 
 	/* SESSION RESUMPTION states */
 	STATE_PARENT_HIBERNATED,
-	STATE_PARENT_RESUME,
+	STATE_PARENT_RESUME_I1,
+	STATE_PARENT_RESUME_I2,
+	STATE_PARENT_RESUME_R1,
+	STATE_PARENT_RESUME_R2,
 
 	STATE_IKEv2_ROOF	/* not a state! */
 };

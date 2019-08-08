@@ -8,6 +8,8 @@
 #include "state.h"
 #include "packet.h"
 #include "deltatime.h"
+#include "id.h"
+#include <pk11pub.h>
 
 /*
  * There are two types for ticket:
@@ -22,18 +24,18 @@
 
 struct ike_ticket_state {
     /* IDi */
-    uint8_t st_myuserprotoid;
-    uint16_t st_myuserport;
-
+    struct id IDi;
     /* IDr */
-    uint8_t st_peeruserprotoid;
-    uint16_t st_peeruserport;
+    struct id IDr;
 
-    /* SPIi , SPIr */
-    ike_spis_t st_ike_spis;
+    /* SPIi */ 
+    uint8_t SPIi[IKE_SA_SPI_SIZE];
+    
+    /* SPIr */
+    uint8_t SPIr[IKE_SA_SPI_SIZE];
 
     /* Reference to sk_d_old */
-    PK11SymKey *st_skey_d_nss;
+    PK11SymKey st_skey_d_nss;
 
     /* All the chosen Algorithm Description */
     struct trans_attrs st_oakley;
@@ -51,15 +53,15 @@ struct ticket_by_value {
     uint8_t reserved;
 
     /* Reference to the key stored in NSS database */
-    PK11SymKey *key_id;
+    #if 0
+    PK11SymKey key_id;
 
     u_char IV[MAX_DIGEST_LEN];
+    #endif
     
     /* The part to be encrypted */
     struct ike_ticket_state ike_tk_state;
 
-   
-   u_int32_t mac ;
 };
 
 /* Ticket by reference structures */

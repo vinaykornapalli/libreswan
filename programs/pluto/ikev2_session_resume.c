@@ -2,12 +2,14 @@
  *  Helper functions and ticket store for IKEv2 Session Resumption
 */
 #include <unistd.h>
+#include <pk11pub.h>
 #include "state.h"
 #include "packet.h"
 #include "lswalloc.h"
 #include "state_db.h"
 #include "timer.h"
 #include "ikev2_session_resume.h"
+
 
 /* currently ticket by value is used */
 #define USE_TICKET_BY_VALUE 1
@@ -19,34 +21,46 @@
 
 struct chunk_t *st_to_ticket(const struct state *st) {
 
-    struct *ticket_payload ticket_payl = alloc_bytes(sizeof(ticket_payload));
+    struct ticket_payload *ticket_payl = alloc_bytes(sizeof(struct ticket_payload));
 
-    if (USE_TICKET_BY_VALUE) {
-       struct ticket_by_value *tk = &(ticket_payl->ticket.tk_by_value);
+       struct ticket_by_value tk ;
 
        /*To be set as 1 for this version of protocol*/
-       tk->format_version = 1;
+       tk.format_version = RESUME_TICKET_VERSION;
        /*This has no use but implemented as per RFC*/
-       tk->reserved = 0;
+       tk.reserved = 0;
 
-       struct ike_ticket_state *ts = &(tk->ike_tk_state);
+       {
+           struct ike_ticket_state ts;
 
-       ts->st_ike_spis = st->st_ike_spis;
-       /* IDi */
-       ts->st_myuserport = st->st_myuserport;
-       ts->st_myuserprotoid = st->st_myuserprotoid;
-       /* IDr */
-       ts->st_peeruserport = st->st_peeruserport;
-       ts->st_peeruserprotoid = st->st_peeruserprotoid;
+           /* IDi */
+           memcpy(&ts.IDi, &(st->st_connection->spd.this.id), sizeof(struct id));
 
-       /*SKEYSEED OLD*/
-       ts->st_skey_d_nss = st->st_skey_d_nss;
+           /* IDr */
 
-       /* All the IKE negotiations */
-       ts->st_oakley = st->st_oakley;
-    }
+           memcpy(&ts.IDr, &(st->st_connection->spd.that.id), sizeof(struct id));
 
+           /* SPIi */
+           memcpy(&ts.SPIi, st->st_ike_spis.initiator.bytes, IKE_SA_SPI_SIZE);
 
+           /* SPIr */
+           memcpy(&ts.SPIr, st->st_ike_spis.responder.bytes, IKE_SA_SPI_SIZE);
+
+           /*SKEYSEED OLD*/
+           memcpy(&ts.st_skey_d_nss, st->st_skey_d_nss, sizeof(PK11SymKey));
+
+           /* All the IKE negotiations */
+
+           memcpy(&ts.st_oakley, st->st_oakley, sizeof(trans_attrs));
+
+            tk.ike_tk_state = ts;
+       }
+
+      
+
+       memcpy(&ticket_payl->ticket.tk_by_value , &tk , sizeof(ticket_by_value));
+       
+    
     chunk_t *ticket_payl_chunk = chunk(ticket_payl , sizeof(ticket_payload));
     return ticket_payl_chunk;
 }
@@ -130,7 +144,7 @@ void resume_connection(struct connection *c) {
        change_state(pst->st_state, STATE_PARENT_RESUME);
        /* Session-Resumption Exchange type should be started from here*/
    }
-   
+
 }
 
 

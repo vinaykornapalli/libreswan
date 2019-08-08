@@ -3069,21 +3069,26 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 		freeanychunk(*tk_payl_chunk);
 		st->st_sent_ticket = TRUE;
 
-		/*
-		N(TICKET_ACK) comes into action if there are any packet size limitations 
-		To-do: Need to find those situations.
-		st->st_sent_ticket_ack = TRUE;
+		
+		/* N(TICKET_ACK) comes into action if there are any packet size limitations 
+		To-do: Need to find those situations. */
+	    #if 0
 		if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
 			return STF_INTERNAL_ERROR;
 		DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
+		#endif
 
-		As per RFC 
+		/*As per RFC 
 		 "Returns an N(TICKET_NACK) payload, if it refuses to grant a
           ticket for some reason."
-         But currently exact reason for not granting is not determined yet.
-	   if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
-	       return STF_INTERNAL_ERROR;
-	    */
+		 But currently exact reason for not granting is not determined yet.
+		*/
+         
+		#if 0
+		if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
+			return STF_INTERNAL_ERROR;
+		#endif
+	    
 	}
 
 	
@@ -3607,19 +3612,16 @@ stf_status ikev2_parent_inR2(struct state *st, struct msg_digest *md)
 		{
 			pb_stream pbs = ntfy->pbs;
 			size_t len = pbs_left(&pbs);
+            if(len <= MAX_TICKET_SIZE) {
+				DBG(DBG_CONTROL, DBG_log("received TICKET_LT_OPAQUE"));
+				chunk_t tk_payl_chunk = alloc_chunk(len, "TICKET_LT_OPAQUE");
 
-			DBG(DBG_CONTROL, DBG_log("received TICKET_LT_OPAQUE"));
-			
-
-			chunk_t tk_payl_chunk = alloc_chunk(len, "TICKET_LT_OPAQUE");
-
-			if (!in_raw(tk_payl_chunk.ptr, len, &pbs, "TICKET_LT_OPAQUE extract")) {
-				loglog(RC_LOG_SERIOUS, "Failed to extract %zd bytes of TICKET_LT_OPAQUE from Notify payload", len);
-				freeanychunk(tk_payl_chunk);
-				return STF_FATAL;
+				if (!in_raw(tk_payl_chunk.ptr, len, &pbs, "TICKET_LT_OPAQUE extract")) {
+					freeanychunk(tk_payl_chunk);
+					return STF_FATAL;
+			    }
 			}
-			freeanychunk(st->st_no_ppk_auth);	/* in case this was already occupied */
-			st->st_no_ppk_auth = no_ppk_auth;
+		
 			break;
 		}
 		    
