@@ -35,7 +35,7 @@ struct ike_ticket_state {
     uint8_t SPIr[IKE_SA_SPI_SIZE];
 
     /* Reference to sk_d_old */
-    PK11SymKey st_skey_d_nss;
+    PK11SymKey *st_skey_d_nss;
 
     /* All the chosen Algorithm Description */
     struct trans_attrs st_oakley;
@@ -92,7 +92,7 @@ struct ticket_payload {
 
 /* Functions related to ticket */
 chunk_t *st_to_ticket(const struct state *st);
-struct state *ticket_to_st(const struct chunk_t *ticket);
+struct state *ticket_to_st(const chunk_t *ticket);
 
 /* Functions related to Session Resume Exchange */
 

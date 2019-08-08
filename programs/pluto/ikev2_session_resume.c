@@ -47,7 +47,7 @@ chunk_t *st_to_ticket(const struct state *st) {
            memcpy(&ts.SPIr, st->st_ike_spis.responder.bytes, IKE_SA_SPI_SIZE);
 
            /*SKEYSEED OLD*/
-           memcpy(&ts.st_skey_d_nss, st->st_skey_d_nss, sizeof(PK11SymKey));
+           memcpy(ts.st_skey_d_nss, st->st_skey_d_nss, sizeof(PK11SymKey));
 
            /* All the IKE negotiations */
 
