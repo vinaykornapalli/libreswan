@@ -40,8 +40,8 @@ struct ike_ticket_state {
     /* All the chosen Algorithm Description */
     struct trans_attrs st_oakley;
 
-    Deltatime_t expiration_time;
-}
+    deltatime_t expiration_time;
+};
 
 /* Ticket by value structures */
 struct ticket_by_value {
@@ -91,7 +91,7 @@ struct ticket_payload {
 
 
 /* Functions related to ticket */
-struct chunk_t *st_to_ticket(const struct state *st);
+chunk_t *st_to_ticket(const struct state *st);
 struct state *ticket_to_st(const struct chunk_t *ticket);
 
 /* Functions related to Session Resume Exchange */

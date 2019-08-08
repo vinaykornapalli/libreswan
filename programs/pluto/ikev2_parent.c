@@ -2451,7 +2451,6 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder*/
      
 	 if (LIN(POLICY_SESSION_RESUME, cc->policy)) { 
-		 pst->st_sent_ticket_request = TRUE;
 		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
 			 return STF_INTERNAL_ERROR;
 		 }
@@ -3076,7 +3075,7 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 
 	if (LIN(POLICY_SESSION_RESUME, c->policy) && st->st_seen_ticket_request) {
 		chunk_t *tk_payl_chunk = st_to_ticket(st);
-		if (!emit_v2NChunk(v2N_TICKET_LT_OPAQUE, tk_payl_chunk, &sk.pbs)) {
+		if (!emit_v2Nchunk(v2N_TICKET_LT_OPAQUE, tk_payl_chunk, &sk.pbs)) {
 			return STF_INTERNAL_ERROR;
 		}
 		freeanychunk(*tk_payl_chunk);

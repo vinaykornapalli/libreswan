@@ -19,7 +19,7 @@
 
 
 
-struct chunk_t *st_to_ticket(const struct state *st) {
+chunk_t *st_to_ticket(const struct state *st) {
 
     struct ticket_payload *ticket_payl = alloc_bytes(sizeof(struct ticket_payload));
 
