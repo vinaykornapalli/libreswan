@@ -159,6 +159,8 @@ LOGDIR?=$(DESTDIR)$(FINALLOGDIR)
 # Note: this variable gets passed in, as in "make INITSYSTEM=systemd"
 INITSYSTEM ?= $(shell $(top_srcdir)/packaging/utils/lswan_detect.sh init)
 
+DOCKER_PLUTONOFORK?=--nofork
+
 # An attempt is made to automatically figure out where boot/shutdown scripts
 # will finally go:  the first directory in INC_RCDIRS that exists gets them.
 # If none of those exists (or INC_RCDIRS is empty), INC_RCDEFAULT gets them.
@@ -477,6 +479,8 @@ TRANSFORM_VARIABLES = sed -e "s:@IPSECVERSION@:$(IPSECVERSION):g" \
 			-e "s:@SD_RESTART_TYPE@:$(SD_RESTART_TYPE):g" \
 			-e "s:@SD_PLUTO_OPTIONS@:$(SD_PLUTO_OPTIONS):g" \
 			-e "s:@SD_WATCHDOGSEC@:$(SD_WATCHDOGSEC):g" \
+			-e "s:@INITSYSTEM@:$(INITSYSTEM):g" \
+			-e "s:@DOCKER_PLUTONOFORK@:$(DOCKER_PLUTONOFORK):g" \
 
 # For KVM testing setup
 #POOL?=${LIBRESWANSRCDIR}/pool
@@ -490,7 +494,8 @@ OSMEDIA?=http://download.fedoraproject.org/pub/fedora/linux/releases/28/Server/x
 # OSMEDIA?=http://ftp.ubuntu.com/ubuntu/dists/precise/main/installer-amd64/
 
 # Now that all the configuration variables are defined, use them to
-# define USERLAND_CFLAGS
-include ${LIBRESWANSRCDIR}/mk/userland-cflags.mk
+# define USERLAND_CFLAGS and USERLAND_LDFLAGS
+
+include ${LIBRESWANSRCDIR}/mk/userland.mk
 
 endif

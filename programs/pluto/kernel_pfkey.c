@@ -66,7 +66,6 @@
 #include "lsw_select.h"
 #include "kernel_alg.h"
 #include "ip_address.h"
-#include "af_info.h"
 
 #define KLIPS_OP_MASK   0xFF
 #define KLIPS_OP_FLAG_SHIFT     8
@@ -477,7 +476,8 @@ static void nat_t_new_klips_mapp(struct state *st, void *data)
 	if (st->st_esp.present &&
 	    sameaddr(&st->st_remoteaddr, &nfo->src) &&
 	    st->st_esp.our_spi == nfo->sa->sadb_sa_spi) {
-		nat_traversal_new_mapping(st, &nfo->dst, nfo->dport);
+		ip_endpoint remote_endpoint = endpoint(&nfo->dst, nfo->dport);
+		nat_traversal_new_mapping(ike_sa(st), &remote_endpoint);
 	}
 }
 
@@ -505,16 +505,12 @@ static void process_pfkey_nat_t_new_mapping(struct sadb_msg *msg UNUSED,
 	if (srca->sa_family != AF_INET || dsta->sa_family != AF_INET) {
 		ugh = "only AF_INET supported";
 	} else {
-		initaddr(
-			(const void *) &((const struct sockaddr_in *)srca)->sin_addr,
-			sizeof(((const struct sockaddr_in *)srca)->sin_addr),
-			srca->sa_family, &nfo.src);
+		/* XXX: endpoint */
+		nfo.src = address_from_in_addr(&((const struct sockaddr_in *)srca)->sin_addr);
 		nfo.sport =
 			ntohs(((const struct sockaddr_in *)srca)->sin_port);
-		initaddr(
-			(const void *) &((const struct sockaddr_in *)dsta)->sin_addr,
-			sizeof(((const struct sockaddr_in *)dsta)->sin_addr),
-			dsta->sa_family, &nfo.dst);
+		/* XXX: endpoint */
+		nfo.dst = address_from_in_addr(&((const struct sockaddr_in *)dsta)->sin_addr);
 		nfo.dport =
 			ntohs(((const struct sockaddr_in *)dsta)->sin_port);
 
@@ -939,12 +935,12 @@ bool pfkey_raw_eroute(const ip_address *this_host,
 	int dport = ntohs(portof(&that_client->addr));
 	int satype;
 
-	networkof(this_client, &sflow_ska);
-	maskof(this_client, &smask_ska);
+	sflow_ska = subnet_endpoint(this_client);
+	smask_ska = subnet_mask(this_client);
 	setportof(sport ? ~0 : 0, &smask_ska);
 
-	networkof(that_client, &dflow_ska);
-	maskof(that_client, &dmask_ska);
+	dflow_ska = subnet_endpoint(that_client);
+	dmask_ska = subnet_mask(that_client);
 	setportof(dport ? ~0 : 0, &dmask_ska);
 
 	satype = eroute_type_to_pfkey_satype(esatype);
@@ -1384,16 +1380,13 @@ bool pfkey_shunt_eroute(const struct connection *c,
 	{
 		const ip_address *peer = &sr->that.host_addr;
 		char buf2[256];
-		const struct af_info *fam = aftoinfo(addrtypeof(peer));
-
-		if (fam == NULL)
-			fam = aftoinfo(AF_INET);
+		const ip_address any = address_any(addrtypeof(peer));
 
 		snprintf(buf2, sizeof(buf2),
 			 "eroute_connection %s", opname);
 
 		return pfkey_raw_eroute(&sr->this.host_addr, &sr->this.client,
-					fam->any,
+					&any,
 					&sr->that.client,
 					htonl(spi),
 					htonl(spi),
@@ -1801,8 +1794,8 @@ void pfkey_scan_shunts(void)
 		struct eroute_info *p = expired;
 		ip_address src, dst;
 
-		networkof(&p->ours, &src);
-		networkof(&p->his, &dst);
+		src = subnet_endpoint(&p->ours);
+		dst = subnet_endpoint(&p->his);
 
 		if (delete_bare_shunt(&src, &dst,
 				p->transport_proto, SPI_HOLD, /* what spi to use? */

@@ -86,7 +86,7 @@
 #include <ocsp.h>
 #include "crypt_hash.h"
 #include "crl_queue.h"
-#include "af_info.h"
+#include "ip_info.h"
 
 bool crl_strict = FALSE;
 bool ocsp_strict = FALSE;
@@ -416,7 +416,7 @@ static void gntoid(struct id *id, const generalName_t *gn)
 		break;
 	case GN_IP_ADDRESS:	/* ID type: ID_IPV4_ADDR */
 	{
-		const struct af_info *afi = &af_inet4_info;
+		const struct ip_info *afi = &ipv4_info;
 		err_t ugh = NULL;
 
 		id->kind = afi->id_addr;
@@ -793,7 +793,7 @@ bool match_certs_id(const struct certs *certs,
 		struct id *peer_id /*ID_FROMCERT => updated*/)
 {
 	char namebuf[IDTOA_BUF];
-	char ipstr[IDTOA_BUF];
+	char iptxt[IDTOA_BUF];
 
 	CERTCertificate *end_cert = certs->cert;
 
@@ -808,14 +808,14 @@ bool match_certs_id(const struct certs *certs,
 	switch (peer_id->kind) {
 	case ID_IPV4_ADDR:
 	case ID_IPV6_ADDR:
-		idtoa(peer_id, ipstr, sizeof(ipstr));
-		m = cert_VerifySubjectAltName(end_cert, ipstr);
+		idtoa(peer_id, iptxt, sizeof(iptxt));
+		m = cert_VerifySubjectAltName(end_cert, iptxt);
 		if (m) {
-			dbg("ID_IP '%s' matched", ipstr);
+			dbg("ID_IP '%s' matched", iptxt);
 		} else {
 			loglog(RC_LOG_SERIOUS,
 			       "certificate does not contain ID_IP subjectAltName=%s",
-			       ipstr);
+			       iptxt);
 		}
 		break;
 
@@ -890,6 +890,11 @@ bool match_certs_id(const struct certs *certs,
 
 	if (!m) {
 		libreswan_log("Peer public key SubjectAltName does not match peer ID for this connection");
+	}
+
+	if (peer_id->isanyid) {
+		libreswan_log("Peer ID is configured with %%any - allowing unmatched ID");
+		return TRUE;
 	}
 
 	return m;

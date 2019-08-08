@@ -127,9 +127,7 @@ struct raw_iface *find_raw_ifaces4(void)
 
 	/* bind the socket */
 	{
-		ip_address any;
-
-		happy(anyaddr(AF_INET, &any));
+		ip_address any = address_any(AF_INET);
 		setportof(htons(pluto_port), &any);
 		if (bind(master_sock, sockaddrof(&any),
 			 sockaddrlenof(&any)) < 0)
@@ -208,9 +206,7 @@ struct raw_iface *find_raw_ifaces4(void)
 		if (rs->sin_addr.s_addr == 0)
 			continue;
 
-		happy(initaddr((const void *)&rs->sin_addr,
-			       sizeof(struct in_addr),
-			       AF_INET, &ri.addr));
+		ri.addr = address_from_in_addr(&rs->sin_addr);
 
 		DBG(DBG_CONTROL, {
 			ipstr_buf b;

@@ -692,7 +692,7 @@
     transmission of packets is the responsibility of other parts of the system
     - the kernel. Pluto can talk to various kernel implementations, such as
     <emphasis remap="B">KLIPS</emphasis>, such as <emphasis
-    remap="B">NETKEY</emphasis>, and such as <emphasis
+    remap="B">XFRM/NETKEY</emphasis>, and such as <emphasis
     remap="B">KAME</emphasis> IPsec stacks. <citerefentry>
         <refentrytitle>ipsec_auto</refentrytitle>
 
@@ -761,7 +761,7 @@
       <para><emphasis remap="B">pluto</emphasis> is an implementation of IKE.
       It runs as a daemon on a network node. Currently, this network node must
       be a LINUX system running the <emphasis remap="B">KLIPS</emphasis> or
-      <emphasis remap="B">NETKEY</emphasis> implementation of IPsec, or a
+      <emphasis remap="B">XFRM/NETKEY</emphasis> implementation of IPsec, or a
       FreeBSD/NetBSD/Mac OSX system running the <emphasis
       remap="B">KAME</emphasis> implementation of IPsec.</para>
 
@@ -892,14 +892,12 @@
     </refsect2>
 
     <refsect2 id="setting_up_netkey_for_pluto">
-      <title>Setting up <emphasis remap="B">NETKEY</emphasis> for <emphasis
+      <title>Setting up <emphasis remap="B">XFRM/NETKEY</emphasis> for <emphasis
       remap="B">pluto</emphasis></title>
 
-      <para>No special requirements are necessary to use NETKEY - it ships
-      with all modern versions of Linux 2.4 and 2.6. however, note that
-      certain vendors or older distributions use old versions or backports of
-      NETKEY that are broken. If possible use a NETKEY version that is at
-      least based on, or backported from Linux 2.6.11 or newer.</para>
+      <para>No special requirements are necessary to use XFRM/NETKEY - it ships
+      with all modern versions of Linux 2.4 and later.
+      </para>
     </refsect2>
 
     <refsect2 id="ipsecsecrets_file">
@@ -1093,7 +1091,7 @@
       remap="B">pluto</emphasis> takes the responsibility of managing both of
       these special kinds of routes.</para>
 
-      <para><emphasis remap="B">NETKEY</emphasis> requires no special
+      <para><emphasis remap="B">XFRM/NETKEY</emphasis> requires no special
       routing.</para>
 
       <para>Each connection may be routed, and must be while it has an IPsec
@@ -1137,7 +1135,7 @@
 
       <para>All of these routing characteristics are expected change when
       <emphasis remap="B">KLIPS</emphasis> and <emphasis
-      remap="B">NETKEY</emphasis> merge into a single new stack.</para>
+      remap="B">XFRM/NETKEY</emphasis> merge into a single new stack.</para>
     </refsect2>
 
     <refsect2 id="using_whack">
@@ -2412,11 +2410,11 @@
 
       <para>The --ddos-auto, --ddos-busy and --ddos-unlimited options
       tells <emphasis remap="B">pluto</emphasis> to update the DDoS
-      protection state. Normally, these meassures are automatically
+      protection state. Normally, these measures are automatically
       activated or deactivated based on the number of states inside
       pluto. The busy and unlimited option tells pluto to activate or
       deactivate the DDoS protection mode manually.  One of these DDoS
-      protection methods is to active IKEv2 DCOOKIEs to defend against
+      protection methods is to activate IKEv2 DCOOKIEs to defend against
       spoofed IKE packets.
       </para>
 
@@ -2440,7 +2438,7 @@
         <varlistentry>
           <term><option>--ddos-auto</option></term>
           <listitem>
-            <para>activate the buildin detection mechanism for the anti-DDoS meassures.</para>
+            <para>activate the built-in detection mechanism for the anti-DDoS measures.</para>
           </listitem>
         </varlistentry>
       </variablelist>

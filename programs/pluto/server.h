@@ -73,9 +73,6 @@ struct iface_dev {
 struct iface_port {
 	struct iface_dev   *ip_dev;
 	ip_endpoint local_endpoint;	/* interface IP address:port */
-	uint16_t port;         /* host byte order; use LOCAL_ENDPOINT */
-	ip_address ip_addr;     /* interface IP address; use LOCAL_ENDPOINT */
-#define pexpect_iface_port(I) pexpect(endpoint_eq(I->local_endpoint, endpoint(&I->ip_addr, I->port)))
 	int fd;                 /* file descriptor of socket for IKE UDP messages */
 	struct iface_port *next;
 	bool ike_float;
@@ -87,7 +84,7 @@ extern struct iface_port  *interfaces;   /* public interfaces */
 extern enum pluto_ddos_mode ddos_mode;
 extern bool pluto_drop_oppo_null;
 
-extern struct iface_port *lookup_iface_ip(ip_address *ip, uint16_t port);
+extern struct iface_port *find_iface_port_by_local_endpoint(ip_endpoint *local_endpoint);
 extern bool use_interface(const char *rifn);
 extern void find_ifaces(bool rm_dead);
 extern void show_ifaces_status(void);

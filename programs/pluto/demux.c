@@ -66,7 +66,7 @@
 
 #include "ip_address.h"
 #include "ip_endpoint.h"
-#include "af_info.h"
+#include "ip_info.h"
 #include "pluto_stats.h"
 #include "ikev2_send.h"
 
@@ -227,7 +227,6 @@ static struct msg_digest *read_packet(const struct iface_port *ifp)
 
 	endpoint_buf eb;
 	endpoint_buf b2;
-	pexpect_iface_port(ifp);
 	dbg("*received %d bytes from %s on %s (%s)",
 	    (int) pbs_room(&md->packet_pbs),
 	    str_endpoint(&sender, &eb),

@@ -17,6 +17,7 @@
 #include "jambuf.h"
 #include "ip_endpoint.h"
 #include "constants.h"		/* for memeq() */
+#include "ip_info.h"
 
 ip_endpoint endpoint(const ip_address *address, int port)
 {
@@ -75,11 +76,15 @@ err_t sockaddr_as_endpoint(const struct sockaddr *sa, socklen_t sa_len, ip_endpo
 
 ip_address endpoint_address(const ip_endpoint *endpoint)
 {
-	if (isvalidaddr(endpoint)) {
+#ifdef ENDPOINT_ADDRESS_PORT
+	return endpoint->address;
+#else
+	if (address_is_valid(endpoint)) {
 		return hsetportof(0, *endpoint);
 	} else {
 		return *endpoint; /* empty_address? */
 	}
+#endif
 }
 
 int endpoint_port(const ip_endpoint *endpoint)
@@ -87,9 +92,23 @@ int endpoint_port(const ip_endpoint *endpoint)
 	return hportof(endpoint);
 }
 
+ip_endpoint set_endpoint_port(const ip_endpoint *address, int port)
+{
+	return hsetportof(port, *address);
+}
+
 int endpoint_type(const ip_endpoint *endpoint)
 {
 	return addrtypeof(endpoint);
+}
+
+const struct ip_info *endpoint_info(const ip_endpoint *endpoint)
+{
+#ifdef ENDPOINT_ADDRESS_PORT
+	return address_info(&endpoint->address);
+#else
+	return address_info(endpoint);
+#endif
 }
 
 /*
@@ -173,4 +192,30 @@ const char *str_sensitive_endpoint(const ip_endpoint *endpoint, endpoint_buf *ds
 bool endpoint_eq(const ip_endpoint l, ip_endpoint r)
 {
 	return memeq(&l, &r, sizeof(l));
+}
+
+#ifdef ENDPOINT_ADDRESS_PORT
+const ip_endpoint endpoint_invalid = {
+	.address = {
+		.family = AF_UNSPEC,
+	},
+};
+#endif
+
+bool endpoint_is_invalid(const ip_endpoint *endpoint)
+{
+#ifdef ENDPOINT_ADDRESS_PORT
+	return address_is_unspec(&endpoint->address);
+#else
+	return address_is_invalid(endpoint);
+#endif
+}
+
+bool endpoint_is_valid(const ip_endpoint *endpoint)
+{
+#ifdef ENDPOINT_ADDRESS_PORT
+	return address_is_valid(&endpoint->address);
+#else
+	return address_is_valid(endpoint);
+#endif
 }

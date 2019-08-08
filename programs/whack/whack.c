@@ -860,9 +860,7 @@ static void check_end(struct whack_end *this, struct whack_end *that,
 			diag("address family of client subnet inconsistent");
 	} else {
 		/* fill in anyaddr-anyaddr as (missing) client subnet */
-		ip_address cn;
-
-		diagq(anyaddr(caf, &cn), NULL);
+		ip_address cn = address_any(caf);
 		diagq(rangetosubnet(&cn, &cn, &this->client), NULL);
 	}
 
@@ -1447,8 +1445,7 @@ int main(int argc, char **argv)
 			lset_t new_policy = LEMPTY;
 
 			af_used_by = long_opts[long_index].name;
-			diagq(anyaddr(msg.addr_family,
-				      &msg.right.host_addr), optarg);
+			msg.right.host_addr = address_any(msg.addr_family);
 			if (streq(optarg, "%any")) {
 			} else if (streq(optarg, "%opportunistic")) {
 				/* always use tunnel mode; mark as opportunistic */
@@ -1496,11 +1493,8 @@ int main(int argc, char **argv)
 					 * --client to 0.0.0.0/0
 					 * or IPV6 equivalent
 					 */
-					ip_address any;
-
 					tunnel_af_used_by = optarg;
-					diagq(anyaddr(msg.tunnel_addr_family,
-						      &any), optarg);
+					ip_address any = address_any(msg.tunnel_addr_family);
 					diagq(initsubnet(&any, 0, '0',
 							 &msg.right.client),
 					      optarg);
@@ -1577,9 +1571,7 @@ int main(int argc, char **argv)
 		case END_NEXTHOP:	/* --nexthop <ip-address> */
 			af_used_by = long_opts[long_index].name;
 			if (streq(optarg, "%direct")) {
-				diagq(anyaddr(msg.addr_family,
-					      &msg.right.host_nexthop),
-				      optarg);
+				msg.right.host_nexthop = address_any(msg.addr_family);
 			} else {
 				diagq(ttoaddr(optarg, 0, msg.addr_family,
 					      &msg.right.host_nexthop),
@@ -1975,13 +1967,13 @@ int main(int argc, char **argv)
 			continue;
 
 		case CD_RSA_SHA2_256:	/* --rsa-sha2, --rsa-sha2_256 */
-			msg.sighash_policy = POL_SIGHASH_SHA2_256;
+			msg.sighash_policy |= POL_SIGHASH_SHA2_256;
 			continue;
 		case CD_RSA_SHA2_384:	/* --rsa-sha2_384 */
-			msg.sighash_policy = POL_SIGHASH_SHA2_384;
+			msg.sighash_policy |= POL_SIGHASH_SHA2_384;
 			continue;
 		case CD_RSA_SHA2_512:	/* --rsa-sha2_512 */
-			msg.sighash_policy = POL_SIGHASH_SHA2_512;
+			msg.sighash_policy |= POL_SIGHASH_SHA2_512;
 			continue;
 
 		case CD_CONNIPV6:	/* --ipv6 */
@@ -2628,8 +2620,29 @@ int main(int argc, char **argv)
 				be -= ls - buf;
 				break;
 			}
-
 			le++;	/* include NL in line */
+
+			/*
+			 * figure out prefix number and how it should
+			 * affect our exit status and printing
+			 */
+			char *lpe = NULL; /* line-prefix-end */
+			unsigned long s = strtoul(ls, &lpe, 10);
+			if (lpe == ls || *lpe != ' ') {
+				/* includes embedded NL, see above */
+				fprintf(stderr, "whack: log line missing NNN prefix: %*s",
+					(int)(le - ls), ls);
+#if 0
+				ls = le;
+				continue;
+#else
+				exit(RC_WHACK_PROBLEM);
+#endif
+			}
+			if (s == RC_PRINT) {
+				ls = lpe + 1; /* skip NNN_ */
+			}
+
 			if (write(STDOUT_FILENO, ls, le - ls) != (le - ls)) {
 				int e = errno;
 
@@ -2638,20 +2651,10 @@ int main(int argc, char **argv)
 					e, strerror(e));
 			}
 
-			/*
-			 * figure out prefix number
-			 * and how it should affect our exit
-			 * status
-			 *
-			 * we don't generally use strtoul but
-			 * in this case, its failure mode
-			 * (0 for nonsense) is probably OK.
-			 */
-			unsigned long s = strtoul(ls, NULL, 10);
-
 			switch (s) {
 			/* these logs are informational only */
 			case RC_COMMENT:
+			case RC_PRINT:
 			case RC_INFORMATIONAL:
 			case RC_INFORMATIONAL_TRAFFIC:
 			case RC_LOG:
