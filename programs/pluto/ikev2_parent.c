@@ -3074,12 +3074,11 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	}
 
 	if (LIN(POLICY_SESSION_RESUME, c->policy) && st->st_seen_ticket_request) {
-		chunk_t *tk_payl_chunk = st_to_ticket(st);
-		if (!emit_v2Nchunk(v2N_TICKET_LT_OPAQUE, tk_payl_chunk, &sk.pbs)) {
+		chunk_t tk_payl_chunk = st_to_ticket(st);
+		if (!emit_v2Nchunk(v2N_TICKET_LT_OPAQUE, &tk_payl_chunk, &sk.pbs)) {
 			return STF_INTERNAL_ERROR;
 		}
-		freeanychunk(*tk_payl_chunk);
-		st->st_sent_ticket = TRUE;
+		freeanychunk(tk_payl_chunk);
 
 		
 		/* N(TICKET_ACK) comes into action if there are any packet size limitations 

@@ -57,7 +57,7 @@
 
 
 
-chunk_t *st_to_ticket(const struct state *st) {
+chunk_t st_to_ticket(const struct state *st) {
 
     struct ticket_payload *ticket_payl = alloc_bytes(sizeof(struct ticket_payload) , "Ticket Payload");
 
@@ -101,7 +101,7 @@ chunk_t *st_to_ticket(const struct state *st) {
        memcpy(&ticket_payl->ticket.tk_by_value , &tk , sizeof(struct ticket_by_value));
        
     
-    chunk_t *ticket_payl_chunk = chunk(ticket_payl , sizeof(struct ticket_payload));
+    chunk_t ticket_payl_chunk = chunk(ticket_payl , sizeof(struct ticket_payload));
     return ticket_payl_chunk;
 }
 /*
@@ -113,7 +113,7 @@ struct state *ticket_to_st(const chunk_t *ticket) {
 
 void ikev2_session_resume_outI1(fd_t whack_sock,
 			      struct connection *c,
-			      struct state *st,
+			      struct state *st
 			      ) {
     /* set up reply */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),

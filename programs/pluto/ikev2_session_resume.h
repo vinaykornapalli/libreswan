@@ -95,7 +95,7 @@ struct ticket_payload {
 
 
 /* Functions related to ticket */
-chunk_t *st_to_ticket(const struct state *st);
+chunk_t st_to_ticket(const struct state *st);
 struct state *ticket_to_st(const chunk_t *ticket);
 
 /* Functions related to Session Resume Exchange */
