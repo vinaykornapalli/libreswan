@@ -700,6 +700,9 @@ void init_ikev2(void)
 		case STATE_PARENT_I1:
 		case STATE_PARENT_R0:
 		case STATE_PARENT_R1:
+		case STATE_PARENT_RESUME_I1:
+		case STATE_PARENT_RESUME_R1:
+		
 			/*
 			 * Count I1 as half-open too because with ondemand,
 			 * a plaintext packet (that is spoofed) will
@@ -709,6 +712,7 @@ void init_ikev2(void)
 			break;
 
 		case STATE_PARENT_I2:
+		case STATE_PARENT_RESUME_I2:
 			/*
 			 * All IKEv1 MAIN modes except the first
 			 * (half-open) and last ones are not
@@ -756,16 +760,7 @@ void init_ikev2(void)
 		case STATE_CHILDSA_DEL:
 			cat = CAT_INFORMATIONAL;
 			break;
-		
-		case STATE_PARENT_RESUME_I1:
-		   
-		    break;
-		case STATE_PARENT_RESUME_I2:
-		    break;
-		case STATE_PARENT_RESUME_R1:
-		    break;
-		case STATE_PARENT_RESUME_R2:
-		    break;
+
 		default:
 			bad_case(fs->kind);
 		}
