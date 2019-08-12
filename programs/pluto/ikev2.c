@@ -756,7 +756,16 @@ void init_ikev2(void)
 		case STATE_CHILDSA_DEL:
 			cat = CAT_INFORMATIONAL;
 			break;
-
+		
+		case STATE_PARENT_RESUME_I1:
+		   
+		    break;
+		case STATE_PARENT_RESUME_I2:
+		    break;
+		case STATE_PARENT_RESUME_R1:
+		    break;
+		case STATE_PARENT_RESUME_R2:
+		    break;
 		default:
 			bad_case(fs->kind);
 		}

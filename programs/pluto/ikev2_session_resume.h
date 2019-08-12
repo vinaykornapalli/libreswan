@@ -102,7 +102,9 @@ struct state *ticket_to_st(const chunk_t *ticket);
 
 
 /* ikev2 Session Resumption initiator function */
-stf_status ikev2_session_resume_outI1(struct connection *c , struct state *st);
+stf_status ikev2_session_resume_outI1(struct state *st);
+stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md);
+
 
 /* Functions related to hibernate/resume connection */
 void hibernate_connection(struct connection *c);
