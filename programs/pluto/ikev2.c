@@ -687,6 +687,7 @@ void init_ikev2(void)
 		switch (fs->kind) {
 
 		case STATE_PARENT_I0:
+		case STATE_PARENT_HIBERNATED:
 			/*
 			 * IKEv2 IKE SA initiator, while the the SA_INIT
 			 * packet is being constructed, are in state.  Only
