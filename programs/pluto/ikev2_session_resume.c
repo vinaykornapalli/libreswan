@@ -149,20 +149,20 @@ stf_status ikev2_session_resume_outI1(struct state *st) {
     return STF_OK;
 }
 
-stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md) {
+// stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md) {
 
     
-    for (struct payload_digest *ntfy = md->chain[ISAKMP_NEXT_v2N]; ntfy != NULL; ntfy = ntfy->next) {
-		switch(ntfy->payload.v2n.isan_type) {
-              case v2N_TICKET_OPAQUE:
-                 chunk_t tk_payl;
-                 clonetochunk(tk_payl,ntfy->pbs.cur, pbs_left(&ntfy->pbs),"Ticket Opaque stored");
-                 struct state *st = ticket_to_st(&tk_payl);
-                 freeanychunk(tk_payl);
-                 break;
-        }
-    }
-}
+//     for (struct payload_digest *ntfy = md->chain[ISAKMP_NEXT_v2N]; ntfy != NULL; ntfy = ntfy->next) {
+// 		switch(ntfy->payload.v2n.isan_type) {
+//               case v2N_TICKET_OPAQUE:
+//                  chunk_t tk_payl;
+//                  clonetochunk(tk_payl,ntfy->pbs.cur, pbs_left(&ntfy->pbs),"Ticket Opaque stored");
+//                  struct state *st = ticket_to_st(&tk_payl);
+//                  freeanychunk(tk_payl);
+//                  break;
+//         }
+//     }
+// }
 
 
 
