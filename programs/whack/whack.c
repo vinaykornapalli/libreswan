@@ -1255,6 +1255,18 @@ int main(int argc, char **argv)
 			msg.whack_delete = TRUE;
 			continue;
 
+		case OPT_HIBERNATE:
+		    msg.whack_hibernate = TRUE;
+			continue;
+
+		case OPT_RESUME:
+		    if(msg.whack_hibernate) {
+				diag("Use only one of the flags i.e., --suspend --name <conname> or --resume --name <conname>");
+			} else {
+                msg.whack_resume = TRUE;
+			}
+			continue;
+
 		case OPT_DELETEID: /* --deleteid  --name <id> */
 			msg.whack_deleteid = TRUE;
 			continue;
@@ -1416,16 +1428,7 @@ int main(int argc, char **argv)
 		case OPT_ASYNC:	/* --asynchronous */
 			msg.whack_async = TRUE;
 			continue;
-		case OPT_HIBERNATE:
-		    msg.whack_hibernate = TRUE;
-			continue;
-		case OPT_RESUME:
-		    if(msg.whack_hibernate) {
-				diag("Use only one of the flags i.e., --suspend <conname> or --resume <conname>");
-			} else {
-                msg.whack_resume = TRUE;
-			}
-			continue;
+
 
 		/* List options */
 
@@ -2420,7 +2423,8 @@ int main(int argc, char **argv)
 		       LELEM(OPT_ROUTE) | LELEM(OPT_UNROUTE) |
 		       LELEM(OPT_INITIATE) | LELEM(OPT_TERMINATE) |
 		       LELEM(OPT_DELETE) |  LELEM(OPT_DELETEID) |
-		       LELEM(OPT_DELETEUSER) | LELEM(OPT_CD))) {
+		       LELEM(OPT_DELETEUSER) | LELEM(OPT_CD) | 
+			   LELEM(OPT_HIBERNATE) | LELEM(OPT_RESUME))) {
 		if (!LHAS(opts1_seen, OPT_NAME))
 			diag("missing --name <connection_name>");
 	} else if (msg.whack_options == LEMPTY) {
