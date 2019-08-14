@@ -605,7 +605,8 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
             whack_log(RC_UNKNOWN_NAME, 
 			"Connection with given name not found, try again with valid name");
 		} else {
-             hibernate_connection(c);
+			/*testing that whack command is working*/
+             /* hibernate_connection(c); */
 		}
 
 	 }
