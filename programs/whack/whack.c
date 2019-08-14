@@ -591,7 +591,7 @@ static const struct option long_opts[] = {
 	{ "oppodport", required_argument, NULL, OPT_OPPO_DPORT + OO },
 
 	{ "asynchronous", no_argument, NULL, OPT_ASYNC + OO },
-	{ "hibernate", required_argument, NULL, OPT_HIBERNATE + OO },
+	{ "suspend", required_argument, NULL, OPT_HIBERNATE + OO },
 	{ "resume", required_argument, NULL, OPT_RESUME + OO },
 
 	/* list options */
@@ -1422,7 +1422,7 @@ int main(int argc, char **argv)
 			continue;
 		case OPT_RESUME:
 		    if(msg.whack_hibernate) {
-				diag("Use only one of the flags i.e., --hibernate <conname> or --resume <conname>");
+				diag("Use only one of the flags i.e., --suspend <conname> or --resume <conname>");
 			} else {
                 msg.whack_resume = TRUE;
 			    msg.name = optarg; /*<conname> is taken as arg*/
