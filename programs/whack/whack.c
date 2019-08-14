@@ -199,8 +199,8 @@ static void help(void)
 		"	[--clearstats] | [--shuntstatus] | [--fipsstatus] | [--briefstatus] \n"
 		"\n"
 		"refresh dns: whack --ddns\n"
-		"Suspend session of a connection: whack (--suspend <conname>)\n"
-		"Resume session of a connection: whack(--resume <connname>)\n"
+		"suspend: whack --suspend --name <connection_name>\n"
+		"resume: whack--resume --name <connection_name>)\n"
 		"\n"
 #ifdef HAVE_SECCOMP
 		"testing: whack --seccomp-crashtest (CAREFUL!)\n"
@@ -591,8 +591,8 @@ static const struct option long_opts[] = {
 	{ "oppodport", required_argument, NULL, OPT_OPPO_DPORT + OO },
 
 	{ "asynchronous", no_argument, NULL, OPT_ASYNC + OO },
-	{ "suspend", required_argument, NULL, OPT_HIBERNATE + OO },
-	{ "resume", required_argument, NULL, OPT_RESUME + OO },
+	{ "suspend", no_argument, NULL, OPT_HIBERNATE + OO },
+	{ "resume", no_argument, NULL, OPT_RESUME + OO },
 
 	/* list options */
 
@@ -1418,14 +1418,12 @@ int main(int argc, char **argv)
 			continue;
 		case OPT_HIBERNATE:
 		    msg.whack_hibernate = TRUE;
-			msg.name = optarg; /*<conname> is taken as arg*/
 			continue;
 		case OPT_RESUME:
 		    if(msg.whack_hibernate) {
 				diag("Use only one of the flags i.e., --suspend <conname> or --resume <conname>");
 			} else {
                 msg.whack_resume = TRUE;
-			    msg.name = optarg; /*<conname> is taken as arg*/
 			}
 			continue;
 

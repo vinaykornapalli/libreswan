@@ -598,13 +598,15 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
     /* Stuff related to Session-Resumption */
 	if (m->whack_hibernate) {
      if(m->name == NULL) {
-		 whack_log(RC_NONAME, "No conname given, try --hibernate <conname>");
+		whack_log(RC_FATAL, "received whack command to delete a connection, but did not receive the connection name - ignored");
 	 } else {
 		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
 		if (c == NULL) {
             whack_log(RC_UNKNOWN_NAME, 
 			"Connection with given name not found, try again with valid name");
 		} else {
+			whack_log(RC_LOG, 
+			"Connection is Found ");
 			/*testing that whack command is working*/
              /* hibernate_connection(c); */
 		}
@@ -614,13 +616,15 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 
 	if (m->whack_resume) {
 	 if (m->name == NULL) {
-		 whack_log(RC_NONAME, "No conname given, try --resume <conname>");
+		 whack_log(RC_FATAL, "received whack command to delete a connection, but did not receive the connection name - ignored");
 	 } else {
 		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
 		if (c == NULL) {
             whack_log(RC_UNKNOWN_NAME,
 			 "Connection with given name not found,try again with valid name");
 		} else {
+				whack_log(RC_LOG, 
+			       "Connection is Found ");
              // To add state transistion functions
 		}
 
