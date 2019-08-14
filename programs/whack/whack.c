@@ -200,7 +200,7 @@ static void help(void)
 		"\n"
 		"refresh dns: whack --ddns\n"
 		"suspend: whack --suspend --name <connection_name>\n"
-		"resume: whack--resume --name <connection_name>)\n"
+		"resume: whack --resume --name <connection_name>)\n"
 		"\n"
 #ifdef HAVE_SECCOMP
 		"testing: whack --seccomp-crashtest (CAREFUL!)\n"
@@ -2453,7 +2453,8 @@ int main(int argc, char **argv)
 	      msg.whack_reread || msg.whack_crash || msg.whack_shunt_status ||
 	      msg.whack_status || msg.whack_global_status || msg.whack_traffic_status ||
 	      msg.whack_fips_status || msg.whack_brief_status || msg.whack_clear_stats || msg.whack_options ||
-	      msg.whack_shutdown || msg.whack_purgeocsp || msg.whack_seccomp_crashtest))
+	      msg.whack_shutdown || msg.whack_purgeocsp || msg.whack_seccomp_crashtest ||
+		  msg.whack_hibernate || msg.whack_resume))
 		diag("no action specified; try --help for hints");
 
 	/* do the logic for --redirect command */
