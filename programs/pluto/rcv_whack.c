@@ -607,8 +607,8 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 		} else {
 			whack_log(RC_LOG, 
 			"Connection is Found ");
-			/*testing that whack command is working*/
-             /* hibernate_connection(c); */
+			
+             hibernate_connection(c); 
 		}
 
 	 }
