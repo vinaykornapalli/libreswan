@@ -181,7 +181,10 @@ void hibernate_connection(struct connection *c) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-        change_state(pst, STATE_PARENT_HIBERNATED);
+        struct msg_digest **mdp;
+        *mdp = fake_md(pst);
+        /* replace (*mdp)->st with st ... */
+        complete_v2_state_transition((*mdp)->st, mdp, STF_OK);
     }
    
 }
