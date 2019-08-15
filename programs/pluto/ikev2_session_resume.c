@@ -184,7 +184,7 @@ void hibernate_connection(struct connection *c) {
 
     struct state *pst = state_with_serialno(c->newest_isakmp_sa);
     struct state *cst = state_with_serialno(c->newest_ipsec_sa);
-
+    struct msg_digest **mdp;
     /* Deleting the child sa of the current state */
     if(cst!=NULL) {
          event_force(EVENT_SA_EXPIRE, cst);
@@ -194,7 +194,6 @@ void hibernate_connection(struct connection *c) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-        struct msg_digest **mdp;
         *mdp = fake_md(pst);
         complete_v2_state_transition(pst, mdp, STF_OK);
     }
