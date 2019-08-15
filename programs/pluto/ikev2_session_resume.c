@@ -165,6 +165,19 @@ stf_status ikev2_session_resume_outI1(struct state *st) {
 // }
 
 
+static struct msg_digest *fake_md(struct state *st)
+{
+	struct msg_digest *fake_md = alloc_md("fake IKEv2 msg_digest");
+	fake_md->st = st;
+	fake_md->from_state = st->st_state->kind;
+	fake_md->hdr.isa_msgid = v2_INVALID_MSGID;
+	fake_md->hdr.isa_version = (IKEv2_MAJOR_VERSION << ISA_MAJ_SHIFT);
+	fake_md->fake_dne = true;
+	/* asume first microcode is valid */
+	fake_md->svm = st->st_state->v2_transitions;
+	return fake_md;
+}
+
 
 /* Functions related to hibernate/resume connection */
 void hibernate_connection(struct connection *c) {
