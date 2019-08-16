@@ -626,6 +626,14 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 				whack_log(RC_LOG, 
 			       "Connection is Found ");
              // To add state transistion functions
+			 struct state *st = state_with_serialno(c->newest_isakmp_sa);
+			 if (st != NULL) {
+                stf_status e = ikev2_session_resume_outI1(st);
+			 } else {
+				 whack_log(RC_LOG, 
+			       "state not found");
+			 }
+			 
 		}
 
 	 }

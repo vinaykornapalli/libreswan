@@ -72,6 +72,7 @@
 #include "ikev2_msgid.h"
 #include "ip_endpoint.h"
 #include "hostpair.h"		/* for find_v2_host_connection() */
+#include "ikev2_session_resume.h"
 
 enum smf2_flags {
 	/*
@@ -623,7 +624,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .state      = STATE_PARENT_HIBERNATED,
 	  .next_state = STATE_PARENT_RESUME_I1,
 	  .flags      = 0,
-	  .processor  = NULL,
+	  .processor  = ikev2_session_resume_outI1,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
 	 {.story      = "Session-Resumption reply packet is processed, Initiate SESSION_RESUME_IKE_AUTH",

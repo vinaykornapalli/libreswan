@@ -109,10 +109,34 @@ struct state *ticket_to_st(const chunk_t *ticket) {
 */
 
 
+static struct msg_digest *fake_md(struct state *st)
+{
+	struct msg_digest *fake_md = alloc_md("fake IKEv2 msg_digest");
+	fake_md->st = st;
+	fake_md->from_state = st->st_state->kind;
+	fake_md->hdr.isa_msgid = v2_INVALID_MSGID;
+	fake_md->hdr.isa_version = (IKEv2_MAJOR_VERSION << ISA_MAJ_SHIFT);
+	fake_md->fake_dne = true;
+	/* asume first microcode is valid */
+	fake_md->svm = st->st_state->v2_transitions;
+	return fake_md;
+}
+
+
+
 stf_status ikev2_session_resume_outI1(struct state *st) {
 
+    /* Suspended state should be transitioned back 
+     *STATE_PARENT_HIBERNATED -> STATE_PARENT_RESUME_I1
+     */
+     struct msg_digest *mdp;
+     mdp = fake_md(st);
+     complete_v2_state_transition(pst, &mdp, STF_OK);
 
-    /* set up reply */
+
+
+
+    /* set up reply for first session exchange message */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
                  "reply packet");
 
@@ -165,18 +189,6 @@ stf_status ikev2_session_resume_outI1(struct state *st) {
 // }
 
 
-static struct msg_digest *fake_md(struct state *st)
-{
-	struct msg_digest *fake_md = alloc_md("fake IKEv2 msg_digest");
-	fake_md->st = st;
-	fake_md->from_state = st->st_state->kind;
-	fake_md->hdr.isa_msgid = v2_INVALID_MSGID;
-	fake_md->hdr.isa_version = (IKEv2_MAJOR_VERSION << ISA_MAJ_SHIFT);
-	fake_md->fake_dne = true;
-	/* asume first microcode is valid */
-	fake_md->svm = st->st_state->v2_transitions;
-	return fake_md;
-}
 
 
 /* Functions related to hibernate/resume connection */
@@ -187,13 +199,13 @@ void hibernate_connection(struct connection *c) {
     struct msg_digest *mdp;
     /* Deleting the child sa of the current state */
     if(cst!=NULL) {
+        loglog(RC_LOG_SERIOUS,"reached deletion of child state" );
          event_force(EVENT_SA_EXPIRE, cst);
     }
      
     if(pst!=NULL) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
-
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
         mdp = fake_md(pst);
         complete_v2_state_transition(pst, &mdp, STF_OK);
