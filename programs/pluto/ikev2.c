@@ -624,7 +624,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .state      = STATE_PARENT_HIBERNATED,
 	  .next_state = STATE_PARENT_RESUME_I1,
 	  .flags      = 0,
-	  .processor  = ikev2_session_resume_outI1,
+	  .processor  = NULL,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
 	 {.story      = "Session-Resumption reply packet is processed, Initiate SESSION_RESUME_IKE_AUTH",

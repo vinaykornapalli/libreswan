@@ -124,7 +124,7 @@ static struct msg_digest *fake_md(struct state *st)
 
 
 
-stf_status ikev2_session_resume_outI1(struct state *st) {
+void ikev2_session_resume_outI1(struct state *st) {
 
     /* Suspended state should be transitioned back 
      *STATE_PARENT_HIBERNATED -> STATE_PARENT_RESUME_I1
