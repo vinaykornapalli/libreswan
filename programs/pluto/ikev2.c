@@ -623,8 +623,9 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
     { .story      = "The Hibernated state is resumed and session_resume_outI1 packet sent",
 	  .state      = STATE_PARENT_HIBERNATED,
 	  .next_state = STATE_PARENT_RESUME_I1,
-	  .flags      = 0,
-	  .processor  = NULL,
+      .flags      = SMF2_MSG_R_SET,
+	  .send       = MESSAGE_REQUEST,  
+	  .processor  = ikev2_session_resume_outI1,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
 	 {.story      = "Session-Resumption reply packet is processed, Initiate SESSION_RESUME_IKE_AUTH",

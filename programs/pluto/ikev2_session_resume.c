@@ -124,7 +124,7 @@ static struct msg_digest *fake_md(struct state *st)
 
 
 
-void ikev2_session_resume_outI1(struct state *st) {
+stf_status ikev2_session_resume_outI1(struct state *st) {
 
     /* Suspended state should be transitioned back 
      *STATE_PARENT_HIBERNATED -> STATE_PARENT_RESUME_I1
@@ -198,7 +198,7 @@ void hibernate_connection(struct connection *c) {
     struct state *cst = state_with_serialno(c->newest_ipsec_sa);
     struct msg_digest *mdp;
     /* Deleting the child sa of the current state */
-    whack_log(RC_COMMENT, "cst to be deleted - %d", c->newest_ipsec_sa);
+    whack_log(RC_COMMENT, "cst to be deleted - %ld", c->newest_ipsec_sa);
     if(cst!=NULL) {
         
         event_force(EVENT_SA_EXPIRE, cst);
@@ -215,7 +215,19 @@ void hibernate_connection(struct connection *c) {
 }
 
 
-
+void resume_connection(struct connection *c) {
+    struct state *st = state_with_serialno(c->newest_isakmp_sa);
+    
+    if (st != NULL) {
+       struct msg_digest *md;
+       md = fake_md(st);
+       stf_status e = ikev2_session_resume_outI1(st , md);
+    }
+    else {
+        whack_log(RC_LOG,
+                  "state not found");
+    }
+}
 
 
 
