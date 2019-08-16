@@ -198,9 +198,10 @@ void hibernate_connection(struct connection *c) {
     struct state *cst = state_with_serialno(c->newest_ipsec_sa);
     struct msg_digest *mdp;
     /* Deleting the child sa of the current state */
+    whack_log(RC_COMMENT, "cst to be deleted - %d", c->newest_ipsec_sa);
     if(cst!=NULL) {
-        loglog(RC_LOG_SERIOUS,"reached deletion of child state" );
-         event_force(EVENT_SA_EXPIRE, cst);
+        
+        event_force(EVENT_SA_EXPIRE, cst);
     }
      
     if(pst!=NULL) {
