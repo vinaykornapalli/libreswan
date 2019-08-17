@@ -124,17 +124,11 @@ static struct msg_digest *fake_md(struct state *st)
 
 
 
-stf_status ikev2_session_resume_outI1(struct state *st) {
+stf_status ikev2_session_resume_outI1(struct state *st ,struct msg_digest *md) {
 
     /* Suspended state should be transitioned back 
      *STATE_PARENT_HIBERNATED -> STATE_PARENT_RESUME_I1
      */
-     struct msg_digest *mdp;
-     mdp = fake_md(st);
-     complete_v2_state_transition(pst, &mdp, STF_OK);
-
-
-
 
     /* set up reply for first session exchange message */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
@@ -196,11 +190,9 @@ void hibernate_connection(struct connection *c) {
 
     struct state *pst = state_with_serialno(c->newest_isakmp_sa);
     struct state *cst = state_with_serialno(c->newest_ipsec_sa);
-    struct msg_digest *mdp;
     /* Deleting the child sa of the current state */
     whack_log(RC_COMMENT, "cst to be deleted - %ld", c->newest_ipsec_sa);
     if(cst!=NULL) {
-        
         event_force(EVENT_SA_EXPIRE, cst);
     }
      
@@ -208,8 +200,7 @@ void hibernate_connection(struct connection *c) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-        mdp = fake_md(pst);
-        complete_v2_state_transition(pst, &mdp, STF_OK);
+         change_state(st ,STATE_PARENT_HIBERNATED);
     }
    
 }
