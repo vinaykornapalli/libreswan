@@ -200,7 +200,7 @@ void hibernate_connection(struct connection *c) {
         /* Marking parent state as hibernated */
         pst->st_hibernated = TRUE;
         /* State should be tranistioned in STATE_PARENT_HIBERNATED */
-         change_state(st ,STATE_PARENT_HIBERNATED);
+         change_state(pst ,STATE_PARENT_HIBERNATED);
     }
    
 }
@@ -213,6 +213,10 @@ void resume_connection(struct connection *c) {
        struct msg_digest *md;
        md = fake_md(st);
        stf_status e = ikev2_session_resume_outI1(st , md);
+       if(e > STF_OK) {
+             whack_log(RC_LOG,
+                  "Session Resumption not Successful");
+       }
     }
     else {
         whack_log(RC_LOG,
