@@ -644,7 +644,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .flags = SMF2_MSG_R_SET,
 	  .send = MESSAGE_REQUEST,
 	  .req_clear_payloads = P(Nr),
-	  .processor  = ikev2_parent_inR1outI2,
+	  .processor  = ikev2_session_resume_inR1outI2,
 	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
