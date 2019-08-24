@@ -33,6 +33,7 @@
 #include "crypt_prf.h"
 #include "crypt_symkey.h"
 #include "crypto.h"
+#include "ike_alg_prf_mac_ops.h"
 
 size_t crypt_prf_fips_key_size_min(const struct prf_desc *prf)
 {
@@ -87,19 +88,19 @@ static struct crypt_prf *wrap(const struct prf_desc *prf_desc,
 	return prf;
 }
 
-struct crypt_prf *crypt_prf_init_chunk(const char *name,
+struct crypt_prf *crypt_prf_init_bytes(const char *name,
 				       const struct prf_desc *prf_desc,
-				       const char *chunk_name, chunk_t chunk)
+				       const char *key_name, const void *key, size_t key_size)
 {
 	if (DBGP(DBG_CRYPT)) {
 		DBG_log("%s PRF %s init %s-chunk@%p (length %zd)",
 			name, prf_desc->common.name,
-			chunk_name, chunk.ptr, chunk.len);
-		DBG_dump_chunk(NULL, chunk);
+			key_name, key, key_size);
+		DBG_dump(NULL, key, key_size);
 	}
 	return wrap(prf_desc, name,
-		    prf_desc->prf_ops->init_bytes(prf_desc, name,
-						  chunk_name, chunk.ptr, chunk.len));
+		    prf_desc->prf_mac_ops->init_bytes(prf_desc, name,
+						      key_name, key, key_size));
 }
 
 struct crypt_prf *crypt_prf_init_symkey(const char *name,
@@ -113,25 +114,13 @@ struct crypt_prf *crypt_prf_init_symkey(const char *name,
 		DBG_symkey(name, key_name, key);
 	}
 	return wrap(prf_desc, name,
-		    prf_desc->prf_ops->init_symkey(prf_desc, name,
+		    prf_desc->prf_mac_ops->init_symkey(prf_desc, name,
 						   key_name, key));
 }
 
 /*
  * Accumulate data.
  */
-
-void crypt_prf_update_chunk(struct crypt_prf *prf,
-			    const char *name, chunk_t update)
-{
-	if (DBGP(DBG_CRYPT)) {
-		DBG_log("%s PRF %s update %s-chunk@%p (length %zd)",
-			prf->name, prf->desc->common.name,
-			name, update.ptr, update.len);
-		DBG_dump_chunk(NULL, update);
-	}
-	prf->desc->prf_ops->digest_bytes(prf->context, name, update.ptr, update.len);
-}
 
 void crypt_prf_update_symkey(struct crypt_prf *prf,
 			     const char *name, PK11SymKey *update)
@@ -142,7 +131,7 @@ void crypt_prf_update_symkey(struct crypt_prf *prf,
 			name, update, sizeof_symkey(update));
 		DBG_symkey(prf->name, name, update);
 	}
-	prf->desc->prf_ops->digest_symkey(prf->context, name, update);
+	prf->desc->prf_mac_ops->digest_symkey(prf->context, name, update);
 }
 
 void crypt_prf_update_byte(struct crypt_prf *prf,
@@ -154,7 +143,7 @@ void crypt_prf_update_byte(struct crypt_prf *prf,
 			name, update, update);
 		DBG_dump(NULL, &update, sizeof(update));
 	}
-	prf->desc->prf_ops->digest_bytes(prf->context, name, &update, 1);
+	prf->desc->prf_mac_ops->digest_bytes(prf->context, name, &update, 1);
 }
 
 void crypt_prf_update_bytes(struct crypt_prf *prf,
@@ -166,13 +155,13 @@ void crypt_prf_update_bytes(struct crypt_prf *prf,
 			name, update, sizeof_update);
 		DBG_dump(NULL, update, sizeof_update);
 	}
-	prf->desc->prf_ops->digest_bytes(prf->context, name, update, sizeof_update);
+	prf->desc->prf_mac_ops->digest_bytes(prf->context, name, update, sizeof_update);
 }
 
 PK11SymKey *crypt_prf_final_symkey(struct crypt_prf **prfp)
 {
 	struct crypt_prf *prf = *prfp;
-	PK11SymKey *tmp = prf->desc->prf_ops->final_symkey(&prf->context);
+	PK11SymKey *tmp = prf->desc->prf_mac_ops->final_symkey(&prf->context);
 	if (DBGP(DBG_CRYPT)) {
 		DBG_log("%s PRF %s final-key@%p (size %zu)",
 			(*prfp)->name, (*prfp)->desc->common.name,
@@ -188,7 +177,7 @@ void crypt_prf_final_bytes(struct crypt_prf **prfp,
 			   void *bytes, size_t sizeof_bytes)
 {
 	struct crypt_prf *prf = *prfp;
-	prf->desc->prf_ops->final_bytes(&prf->context, bytes, sizeof_bytes);
+	prf->desc->prf_mac_ops->final_bytes(&prf->context, bytes, sizeof_bytes);
 	if (DBGP(DBG_CRYPT)) {
 		DBG_log("%s PRF %s final-bytes@%p (length %zu)",
 			(*prfp)->name, (*prfp)->desc->common.name,
@@ -203,12 +192,12 @@ chunk_t crypt_prf_final_chunk(struct crypt_prf **prfp)
 {
 	struct crypt_prf *prf = *prfp;
 	chunk_t chunk = alloc_chunk(prf->desc->prf_output_size, prf->name);
-	prf->desc->prf_ops->final_bytes(&prf->context, chunk.ptr, chunk.len);
+	prf->desc->prf_mac_ops->final_bytes(&prf->context, chunk.ptr, chunk.len);
 	if (DBGP(DBG_CRYPT)) {
 		DBG_log("%s PRF %s final-chunk@%p (length %zu)",
 			(*prfp)->name, (*prfp)->desc->common.name,
 			chunk.ptr, chunk.len);
-		DBG_dump_chunk(NULL, chunk);
+		DBG_dump_hunk(NULL, chunk);
 	}
 	pfree(*prfp);
 	*prfp = prf = NULL;

@@ -17,8 +17,10 @@
 #include "lswalloc.h"
 #include "ike_alg.h"
 #include "ike_alg_prf.h"
-#include "ike_alg_hash_nss_ops.h"
-#include "ike_alg_prf_hmac_ops.h"
+#include "ike_alg_hash_ops.h"
+#include "ike_alg_prf_mac_ops.h"
+#include "ike_alg_prf_ikev1_ops.h"
+#include "ike_alg_prf_ikev2_ops.h"
 
 #include "crypt_symkey.h"
 #include "crypt_prf.h"
@@ -46,7 +48,9 @@ static struct prf_desc ike_alg_prf_sha2_224 = {
 	.prf_key_size = 64, /* 224/8 */
 	.prf_output_size = 28,  /* 224/8 */
 	.hasher = &ike_alg_hash_sha2_224,
-	.prf_ops = &ike_alg_prf_hmac_ops,
+	.prf_mac_ops = &ike_alg_prf_mac_hmac_ops,
+	.prf_ikev1_ops = &ike_alg_prf_ikev1_mac_ops,
+	.prf_ikev2_ops = &ike_alg_prf_ikev2_mac_ops,
 };
 #endif
 
@@ -107,9 +111,9 @@ static void hmac_run_test(void)
 	if (prf_alg == NULL) {
 		return;
 	}
-	struct crypt_prf *prf = crypt_prf_init_chunk("run", prf_alg,
-						     "key", key);
-	crypt_prf_update_chunk(prf, "msg", msg);
+	struct crypt_prf *prf = crypt_prf_init_hunk("run", prf_alg,
+						    "key", key);
+	crypt_prf_update_hunk(prf, "msg", msg);
 	chunk_t bytes = alloc_chunk(prf_alg->prf_output_size, "bytes");
 	crypt_prf_final_bytes(&prf, bytes.ptr, bytes.len);
 	print_chunk("Mac", NULL, bytes, tlen);

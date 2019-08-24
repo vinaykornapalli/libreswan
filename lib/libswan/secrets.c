@@ -59,6 +59,7 @@
 #include <keyhi.h>
 #include "lswconf.h"
 #include "lswnss.h"
+#include "ip_info.h"
 
 /* this does not belong here, but leave it here for now */
 const struct id empty_id;	/* ID_NONE */
@@ -114,8 +115,8 @@ static void lsw_process_secrets_file(struct secret **psecrets,
 void DBG_log_RSA_public_key(const struct RSA_public_key *k)
 {
 	DBG_log(" keyid: *%s", k->keyid);
-	DBG_dump_chunk("n", k->n);
-	DBG_dump_chunk("e", k->e);
+	DBG_dump_hunk("n", k->n);
+	DBG_dump_hunk("e", k->e);
 	DBG_log_ckaid("CKAID", k->ckaid);
 }
 
@@ -123,7 +124,7 @@ void DBG_log_ECDSA_public_key(const struct ECDSA_public_key *k)
 {
 	DBG_log(" keyid: *%s", k->keyid);
 	DBG_log(" key size: *%s", k->keyid);
-	DBG_dump_chunk("pub", k->pub);
+	DBG_dump_hunk("pub", k->pub);
 	DBG_log_ckaid("CKAID", k->ckaid);
 }
 
@@ -815,7 +816,7 @@ static err_t lsw_process_rsa_secret(struct RSA_private_key *rsak)
 			DBG(DBG_PRIVATE, DBG_dump(p->name, bv, bvlen));
 			chunk_t *n = (chunk_t*) ((char *)rsak + p->offset);
 			clonetochunk(*n, bv, bvlen, p->name);
-			DBG(DBG_PRIVATE, DBG_dump_chunk(p->name, *n));
+			DBG(DBG_PRIVATE, DBG_dump_hunk(p->name, *n));
 		} else {
 			DBG(DBG_CONTROL, DBG_log("ignoring %s", p->name));
 		}
@@ -891,13 +892,13 @@ static void add_secret(struct secret **slist,
 		idl->next = NULL;
 		idl->id = empty_id;
 		idl->id.kind = ID_NONE;
-		idl->id.ip_addr = address_any(AF_INET);
+		idl->id.ip_addr = address_any(&ipv4_info);
 
 		struct id_list *idl2 = alloc_bytes(sizeof(struct id_list), "id list");
 		idl2->next = idl;
 		idl2->id = empty_id;
 		idl2->id.kind = ID_NONE;
-		idl2->id.ip_addr = address_any(AF_INET);
+		idl2->id.ip_addr = address_any(&ipv4_info);
 
 		s->ids = idl2;
 	}
@@ -1068,12 +1069,12 @@ static void lsw_process_secret_records(struct secret **psecrets)
 				if (tokeq("%any")) {
 					id = empty_id;
 					id.kind = ID_IPV4_ADDR;
-					id.ip_addr = address_any(AF_INET);
+					id.ip_addr = address_any(&ipv4_info);
 					ugh = NULL;
 				} else if (tokeq("%any6")) {
 					id = empty_id;
 					id.kind = ID_IPV6_ADDR;
-					id.ip_addr = address_any(AF_INET6);
+					id.ip_addr = address_any(&ipv6_info);
 					ugh = NULL;
 				} else {
 					ugh = atoid(flp->tok, &id, FALSE);
@@ -1610,7 +1611,7 @@ static err_t add_ckaid_to_ecdsa_privkey(struct ECDSA_private_key *ecdsak,
 	}
 
 	clonetochunk(ecdsak->pub.pub, pubk->u.ec.publicValue.data,
-             pubk->u.ec.publicValue.len, "pub");
+		pubk->u.ec.publicValue.len, "pub");
 	ugh = form_ckaid_nss(certCKAID, &ecdsak->pub.ckaid);
 	if (ugh != NULL) {
 		/* let caller clean up mess */
@@ -1618,7 +1619,7 @@ static err_t add_ckaid_to_ecdsa_privkey(struct ECDSA_private_key *ecdsak,
 	}
 	/* keyid */
 	memset(ecdsak->pub.keyid,0,KEYID_BUF);
-        memcpy(ecdsak->pub.keyid, pubk->u.ec.publicValue.data, KEYID_BUF-1);
+	memcpy(ecdsak->pub.keyid, pubk->u.ec.publicValue.data, KEYID_BUF-1);
 
 	/*size */
 	ecdsak->pub.k = pubk->u.ec.size;
@@ -1647,7 +1648,7 @@ static err_t lsw_extract_nss_cert_privkey_RSA(struct RSA_private_key *rsak,
 }
 
 static err_t lsw_extract_nss_cert_privkey_ECDSA(struct ECDSA_private_key *ecdsak,
-                                          CERTCertificate *cert)
+						CERTCertificate *cert)
 {
 	DBG(DBG_CRYPT,
 		DBG_log("extracting the ECDSA private key for %s", cert->nickname));
@@ -1683,7 +1684,7 @@ static const struct RSA_private_key *get_nss_cert_privkey_RSA(struct secret *sec
 }
 
 static const struct ECDSA_private_key *get_nss_cert_privkey_ECDSA(struct secret *secrets,
-                                                          CERTCertificate *cert)
+								CERTCertificate *cert)
 {
 	struct pubkey *pub = allocate_ECDSA_public_key_nss(cert);
 

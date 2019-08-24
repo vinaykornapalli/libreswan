@@ -147,7 +147,7 @@ static bool emit_subnet_id(const ip_subnet *net,
 			   uint16_t port,
 			   pb_stream *outs)
 {
-	const struct ip_info *ai = aftoinfo(subnettypeof(net));
+	const struct ip_info *ai = subnet_type(net);
 	const bool usehost = net->maskbits == ai->mask_cnt;
 	pb_stream id_pbs;
 
@@ -163,16 +163,15 @@ static bool emit_subnet_id(const ip_subnet *net,
 
 	ip_address ta;
 	ta = subnet_endpoint(net);
-	const unsigned char *tbp;
-	size_t tal = addrbytesptr_read(&ta, &tbp);
-	if (!out_raw(tbp, tal, &id_pbs, "client network"))
-		return FALSE;
+	if (!pbs_out_address(&ta, &id_pbs, "client network")) {
+		return false;
+	}
 
 	if (!usehost) {
 		ta = subnet_mask(net);
-		tal = addrbytesptr_read(&ta, &tbp);
-		if (!out_raw(tbp, tal, &id_pbs, "client mask"))
-			return FALSE;
+		if (!pbs_out_address(&ta, &id_pbs, "client mask")) {
+			return false;
+		}
 	}
 
 	close_output_pbs(&id_pbs);
@@ -1069,14 +1068,14 @@ stf_status quick_inI1_outR1(struct state *p1st, struct msg_digest *md)
 			hv = p1st->hidden_variables;
 			nat_traversal_natoa_lookup(md, &hv);
 
-			if (!isanyaddr(&hv.st_nat_oa)) {
+			if (address_is_specified(&hv.st_nat_oa)) {
 				addrtosubnet(&hv.st_nat_oa, &b.his.net);
 				subnettot(&b.his.net, 0, subnet_buf,
 					  sizeof(subnet_buf));
 				loglog(RC_LOG_SERIOUS,
 				       "IDci was FQDN: %s, using NAT_OA=%s %d as IDci",
 				       idfqdn, subnet_buf,
-				       isanyaddr(&hv.st_nat_oa));
+				       isanyaddr(&hv.st_nat_oa)/*XXX: always 0?*/);
 			}
 		}
 	} else {
@@ -1674,7 +1673,8 @@ stf_status quick_inR1_outI2(struct state *st, struct msg_digest *md)
 static void quick_inR1_outI2_continue(struct state *st,
 				      struct msg_digest **mdp,
 				      struct pluto_crypto_req *r)
-{	DBG(DBG_CONTROL,
+{
+	DBG(DBG_CONTROL,
 		DBG_log("quick_inR1_outI2_continue for #%lu: calculated ke+nonce, calculating DH",
 			st->st_serialno));
 

@@ -33,18 +33,19 @@
 #include "lswfips.h"
 #include "lswlog.h"
 #include "lswalloc.h"
+#include "proposals.h"
 #include "ike_alg.h"
 #include "ike_alg_integ.h"
 #include "ike_alg_encrypt.h"
-#include "proposals.h"
+#include "ike_alg_encrypt_ops.h"
 #include "ike_alg_prf.h"
-#include "ike_alg_prf_hmac_ops.h"
-#include "ike_alg_prf_nss_ops.h"
+#include "ike_alg_prf_mac_ops.h"
+#include "ike_alg_prf_ikev1_ops.h"
+#include "ike_alg_prf_ikev2_ops.h"
 #include "ike_alg_hash.h"
-#include "ike_alg_hash_nss_ops.h"
+#include "ike_alg_hash_ops.h"
 #include "ike_alg_dh.h"
-#include "ike_alg_dh_nss_modp_ops.h"
-#include "ike_alg_dh_nss_ecp_ops.h"
+#include "ike_alg_dh_ops.h"
 
 /*==========================================================
 *
@@ -395,7 +396,6 @@ static void pexpect_ike_alg_has_base_names(where_t where,
 				    pri_ike_alg(alg), pri_shunk(alg_name),
 				    pri_ike_alg(base_alg));
 		}
-
 	}
 }
 
@@ -423,11 +423,11 @@ static void hash_desc_check(const struct ike_alg *alg)
 	pexpect_ike_alg(alg, hash->hash_digest_size > 0);
 	pexpect_ike_alg(alg, hash->hash_block_size > 0);
 	if (hash->hash_ops != NULL) {
+		pexpect_ike_alg(alg, hash->hash_ops->backend != NULL);
 		pexpect_ike_alg(alg, hash->hash_ops->check != NULL);
 		pexpect_ike_alg(alg, hash->hash_ops->digest_symkey != NULL);
 		pexpect_ike_alg(alg, hash->hash_ops->digest_bytes != NULL);
 		pexpect_ike_alg(alg, hash->hash_ops->final_bytes != NULL);
-		pexpect_ike_alg(alg, hash->hash_ops->symkey_to_symkey != NULL);
 		hash->hash_ops->check(hash);
 	}
 }
@@ -460,7 +460,7 @@ const struct ike_alg_type ike_alg_hash = {
 
 static const struct prf_desc *prf_descriptors[] = {
 #ifdef USE_MD5
-	&ike_alg_prf_md5,
+	&ike_alg_prf_hmac_md5,
 #endif
 #ifdef USE_SHA1
 	&ike_alg_prf_sha1,
@@ -481,22 +481,48 @@ static void prf_desc_check(const struct ike_alg *alg)
 	pexpect_ike_alg(alg, prf->prf_key_size > 0);
 	pexpect_ike_alg(alg, prf->prf_output_size > 0);
 	pexpect_ike_alg_has_name(HERE, alg, prf->prf_ike_audit_name, ".prf_ike_audit_name");
-	if (prf->prf_ops != NULL) {
-		pexpect_ike_alg(alg, prf->prf_ops->check != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->init_symkey != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->init_bytes != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->digest_symkey != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->digest_bytes != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->final_symkey != NULL);
-		pexpect_ike_alg(alg, prf->prf_ops->final_bytes != NULL);
+	/* all or none */
+	pexpect_ike_alg(alg, (prf->prf_mac_ops != NULL) == (prf->prf_ikev1_ops != NULL));
+	pexpect_ike_alg(alg, (prf->prf_mac_ops != NULL) == (prf->prf_ikev2_ops != NULL));
+
+	if (prf->prf_mac_ops != NULL) {
+		pexpect_ike_alg(alg, prf->prf_mac_ops->backend != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->check != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->init_symkey != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->init_bytes != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->digest_symkey != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->digest_bytes != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->final_symkey != NULL);
+		pexpect_ike_alg(alg, prf->prf_mac_ops->final_bytes != NULL);
 		/*
 		 * IKEv1 IKE algorithms must have a hasher - used for
 		 * things like computing IV.
 		 */
 		pexpect_ike_alg(alg, prf->common.id[IKEv1_OAKLEY_ID] < 0 ||
 				     prf->hasher != NULL);
-		prf->prf_ops->check(prf);
+		prf->prf_mac_ops->check(prf);
 	}
+
+	if (prf->prf_ikev1_ops != NULL) {
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->backend != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->signature_skeyid != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->pre_shared_key_skeyid != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->skeyid_d != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->skeyid_a != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->skeyid_e != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev1_ops->appendix_b_keymat_e != NULL);
+	}
+
+	if (prf->prf_ikev2_ops != NULL) {
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->backend != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->prfplus != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->ike_sa_skeyseed != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->ike_sa_rekey_skeyseed != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->ike_sa_keymat != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->child_sa_keymat != NULL);
+		pexpect_ike_alg(alg, prf->prf_ikev2_ops->psk_auth != NULL);
+	}
+
 	if (prf->hasher != NULL) {
 		/*
 		 * Check for dangling pointer.
@@ -510,7 +536,7 @@ static void prf_desc_check(const struct ike_alg *alg)
 static bool prf_desc_is_ike(const struct ike_alg *alg)
 {
 	const struct prf_desc *prf = prf_desc(alg);
-	return prf->prf_ops != NULL;
+	return prf->prf_mac_ops != NULL;
 }
 
 static struct algorithm_table prf_algorithms = ALGORITHM_TABLE(prf_descriptors);
@@ -534,7 +560,7 @@ const struct ike_alg_type ike_alg_prf = {
 
 static const struct integ_desc *integ_descriptors[] = {
 #ifdef USE_MD5
-	&ike_alg_integ_md5,
+	&ike_alg_integ_hmac_md5_96,
 #endif
 #ifdef USE_SHA1
 	&ike_alg_integ_sha1,
@@ -704,6 +730,7 @@ static void encrypt_desc_check(const struct ike_alg *alg)
 	 * Only implemented one way, if at all.
 	 */
 	if (encrypt->encrypt_ops != NULL) {
+		pexpect_ike_alg(alg, encrypt->encrypt_ops->backend != NULL);
 		pexpect_ike_alg(alg, encrypt->encrypt_ops->check != NULL);
 		pexpect_ike_alg(alg, ((encrypt->encrypt_ops->do_crypt == NULL)
 				      != (encrypt->encrypt_ops->do_aead == NULL)));
@@ -812,6 +839,7 @@ static void dh_desc_check(const struct ike_alg *alg)
 	/* always implemented */
 	pexpect_ike_alg(alg, dh->dh_ops != NULL);
 	if (dh->dh_ops != NULL) {
+		pexpect_ike_alg(alg, dh->dh_ops->backend != NULL);
 		pexpect_ike_alg(alg, dh->dh_ops->check != NULL);
 		pexpect_ike_alg(alg, dh->dh_ops->calc_secret != NULL);
 		pexpect_ike_alg(alg, dh->dh_ops->calc_shared != NULL);

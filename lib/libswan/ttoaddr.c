@@ -21,7 +21,9 @@
 #include <ctype.h>		/* for isxdigit() */
 
 #include "ip_address.h"
+#include "ip_info.h"
 #include "lswalloc.h"		/* for alloc_things(), pfree() */
+#include "lswlog.h"		/* for pexpect() */
 
 /*
  * Legal ASCII characters in a domain name.  Underscore technically is not,
@@ -201,15 +203,17 @@ static err_t tryname(
 		if (h->h_addrtype != af)
 			return "address-type mismatch from gethostbyname2!!!";
 
-		return initaddr((unsigned char *)h->h_addr, h->h_length, af,
-				dst);
+		return data_to_address(h->h_addr, h->h_length, aftoinfo(af), dst);
 	} else {
 		if (ne->n_addrtype != af)
 			return "address-type mismatch from getnetbyname!!!";
-
-		ne->n_net = htonl(ne->n_net);
-		return initaddr((unsigned char *)&ne->n_net, sizeof(ne->n_net),
-				af, dst);
+		if (!pexpect(af == AF_INET)) {
+			return "address-type mismatch by convoluted logic!!!";
+		}
+		/* apparently .n_net is in host order */
+		struct in_addr in = { htonl(ne->n_net), };
+		*dst = address_from_in_addr(&in);
+		return NULL;
 	}
 }
 
@@ -271,7 +275,6 @@ static err_t trydotted(const char *src, size_t srclen, ip_address *dst)
 				return "?syntax error in dotted-decimal address";
 			else
 				return "syntax error in dotted-decimal address";
-
 		}
 	}
 	if (src != stop)
@@ -347,7 +350,7 @@ static err_t colon(const char *src,
 			return "illegal leading `:' in " IT;
 
 		if (srclen == 2) {
-			*dst = address_any(AF_INET6);
+			*dst = address_any(&ipv6_info);
 			return NULL;
 		}
 		src++;	/* past first but not second */

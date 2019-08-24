@@ -358,7 +358,7 @@ static err_t default_end(struct end *e, ip_address *dflt_nexthop)
 		return "unknown address family in default_end";
 
 	/* Default ID to IP (but only if not NO_IP -- WildCard) */
-	if (e->id.kind == ID_NONE && !isanyaddr(&e->host_addr)) {
+	if (e->id.kind == ID_NONE && endpoint_is_specified(&e->host_addr)) {
 		e->id.kind = afi->id_addr;
 		e->id.ip_addr = e->host_addr;
 		e->id.isanyid = TRUE; /* used to match id=%any */
@@ -848,8 +848,10 @@ static bool check_connection_end(const struct whack_end *this,
 		}
 	}
 
-	if (!isanyaddr(&this->client.addr) && !isanyaddr(&that->client.addr)) {
-		if (subnettypeof(&this->client) != subnettypeof(&that->client)) {
+	if (subnet_is_specified(&this->client) &&
+	    subnet_is_specified(&that->client)) {
+		/* IPv4 vs IPv6? */
+		if (subnet_type(&this->client) != subnet_type(&that->client)) {
 			/*
 			 * !!! overloaded use of RC_CLASH
 			 */
@@ -2014,8 +2016,7 @@ struct connection *rw_instantiate(struct connection *c,
 		 * from trying to use this connection to get to a particular
 		 * client
 		 */
-		d->spd.that.client = *aftoinfo(subnettypeof(
-						&d->spd.that.client))->none;
+		d->spd.that.client = *subnet_type(&d->spd.that.client)->no_addresses;
 	}
 	DBG(DBG_CONTROL, {
 		ipstr_buf b;
@@ -2149,7 +2150,8 @@ struct connection *find_connection_for_clients(struct spd_route **srp,
 	policy_prio_t best_prio = BOTTOM_PRIO;
 	struct spd_route *best_sr = NULL;
 
-	passert(!isanyaddr(our_client) && !isanyaddr(peer_client));
+	passert(endpoint_is_specified(our_client));
+	passert(endpoint_is_specified(peer_client));
 
 	DBG(DBG_CONTROL, {
 		ipstr_buf a;
@@ -2386,7 +2388,8 @@ struct connection *build_outgoing_opportunistic_connection(const ip_address *our
 	struct spd_route *bestsr = NULL;	/* initialization not necessary */
 	int our_port, peer_port;
 
-	passert(!isanyaddr(our_client) && !isanyaddr(peer_client));
+	passert(endpoint_is_specified(our_client));
+	passert(endpoint_is_specified(peer_client));
 
 	our_port = hportof(our_client);
 	peer_port = hportof(peer_client);
@@ -3660,8 +3663,7 @@ static void show_one_sr(const struct connection *c,
 		enum_name(&routing_story, sr->routing),
 		sr->eroute_owner);
 
-#define OPT_HOST(h, ipb)  (addrlenof(h) == 0 || isanyaddr(h) ? \
-			"unset" : ipstr(h, &ipb))
+#define OPT_HOST(h, ipb)  (address_is_specified(h) ? str_address(h, &ipb) : "unset")
 
 		/* note: this macro generates a pair of arguments */
 #define OPT_PREFIX_STR(pre, s) (s) == NULL ? "" : (pre), (s) == NULL? "" : (s)
@@ -3755,7 +3757,6 @@ static void show_one_sr(const struct connection *c,
 		  c->name, instance, labeled_ipsec);
 	whack_log(RC_COMMENT, "\"%s\"%s:   policy_label:%s;",
 		  c->name, instance, policy_label);
-
 }
 
 void show_one_connection(const struct connection *c)

@@ -85,10 +85,10 @@
 #include "state_db.h"
 #include "crypt_symkey.h" /* for release_symkey */
 #include "ikev2_session_resume.h"
+#include "ip_info.h"
 
 struct mobike {
-	ip_address remoteaddr;
-	uint16_t remoteport;
+	ip_endpoint remote;
 	const struct iface_port *interface;
 };
 
@@ -136,7 +136,6 @@ static bool negotiate_hash_algo_from_notification(struct payload_digest *p, stru
 		default:
 			libreswan_log("Received and ignored hash algorithm %d", h_value);
 		}
-
 	}
 	return true;
 }
@@ -487,7 +486,7 @@ static bool id_ipseckey_allowed(struct state *st, enum ikev2_auth_method atype)
 		idtoa(&id, thatid, sizeof(thatid));
 		DBG_log("%s #%lu not fetching ipseckey %s%s remote=%s thatid=%s",
 			c->name, st->st_serialno,
-			err1, err2, ipstr(&st->st_remoteaddr, &ra), thatid);
+			err1, err2, ipstr(&st->st_remote_endpoint, &ra), thatid);
 	});
 	return FALSE;
 }
@@ -756,7 +755,7 @@ static stf_status ikev2_parent_outI1_common(struct state *st)
 	 * - if not, check if we support redirect mechanism
 	 *   and send v2N_REDIRECT_SUPPORTED if we do
 	 */
-	if (!isanyaddr(&c->temp_vars.redirect_ip)) {
+	if (address_is_specified(&c->temp_vars.redirect_ip)) {
 		if (!emit_redirect_notification_decoded_dest(v2N_REDIRECTED_FROM,
 				&c->temp_vars.old_gw_address, NULL, NULL, &rbody))
 			return STF_INTERNAL_ERROR;
@@ -1251,7 +1250,7 @@ stf_status ikev2_IKE_SA_process_SA_INIT_response_notification(struct state *st,
 				"saved received dcookie");
 
 			DBG(DBG_CONTROLMORE,
-			    DBG_dump_chunk("dcookie received (instead of an R1):",
+			    DBG_dump_hunk("dcookie received (instead of an R1):",
 					   st->st_dcookie);
 			    DBG_log("next STATE_PARENT_I1 resend I1 with the dcookie"));
 
@@ -1727,7 +1726,7 @@ static stf_status ikev2_ship_cp_attr_ip(uint16_t type, ip_address *ip,
 
 	struct ikev2_cp_attribute attr = {
 		.type = type,
-		.len = (ip == NULL) ? 0 : addrlenof(ip),
+		.len = (ip == NULL) ? 0 : address_type(ip)->ip_size,
 	};
 
 	if (!out_struct(&attr, &ikev2_cp_attribute_desc, outpbs,
@@ -1735,10 +1734,9 @@ static stf_status ikev2_ship_cp_attr_ip(uint16_t type, ip_address *ip,
 		return STF_INTERNAL_ERROR;
 
 	if (attr.len > 0) {
-		const unsigned char *byte_ptr;
-		addrbytesptr_read(ip, &byte_ptr);
-		if (!out_raw(byte_ptr, attr.len, &a_pbs, story))
+		if (!pbs_out_address(ip, &a_pbs, story)) {
 			return STF_INTERNAL_ERROR;
+		}
 	}
 
 	close_output_pbs(&a_pbs);
@@ -2060,7 +2058,7 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 
 			create_ppk_id_payload(ppk_id, &ppk_id_p);
 			DBG(DBG_CONTROL, DBG_log("ppk type: %d", (int) ppk_id_p.type));
-			DBG(DBG_CONTROL, DBG_dump_chunk("ppk_id from payload:", ppk_id_p.ppk_id));
+			DBG(DBG_CONTROL, DBG_dump_hunk("ppk_id from payload:", ppk_id_p.ppk_id));
 
 			ppk_recalculate(ppk, pst->st_oakley.ta_prf,
 						&pst->st_skey_d_nss,
@@ -2976,7 +2974,7 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 	 * IKE SA state.  There should instead be separate state
 	 * transitions for the IKE and CHILD SAs and then have the IKE
 	 * SA invoke the CHILD SA's transition.
- 	 */
+	 */
 	pexpect(md->svm->next_state == STATE_V2_IPSEC_R);
 	ikev2_ike_sa_established(pexpect_ike_sa(st), md->svm,
 				 STATE_PARENT_R2);
@@ -4445,7 +4443,7 @@ stf_status ikev2_child_inIoutR(struct state *st /* child state */,
 	 * replacement has KE or has SA processor handled that by only
 	 * accepting a proposal with KE?
 	 */
- 	if (st->st_pfs_group != NULL) {
+	if (st->st_pfs_group != NULL) {
 		pexpect(st->st_oakley.ta_dh == st->st_pfs_group);
 		if (!accept_KE(&st->st_gi, "Gi", st->st_oakley.ta_dh,
 			       md->chain[ISAKMP_NEXT_v2KE])) {
@@ -5032,7 +5030,7 @@ static void process_informational_notify_req(struct msg_digest *md, bool *redire
 
 					clonetochunk(*cookie2, dc_pbs->cur, pbs_left(dc_pbs),
 							"saved cookie2");
-					DBG_dump_chunk("MOBIKE COOKIE2 received:", *cookie2);
+					DBG_dump_hunk("MOBIKE COOKIE2 received:", *cookie2);
 				}
 			} else {
 				libreswan_log("Connection does not allow MOBIKE, ignoring COOKIE2");
@@ -5087,8 +5085,7 @@ static void mobike_reset_remote(struct state *st, struct mobike *est_remote)
 	if (est_remote->interface == NULL)
 		return;
 
-	st->st_remoteaddr = est_remote->remoteaddr;
-	st->st_remoteport = est_remote->remoteport;
+	st->st_remote_endpoint = est_remote->remote;
 	st->st_interface = est_remote->interface;
 	pexpect_st_local_endpoint(st);
 	st->st_mobike_remote_endpoint = endpoint_invalid;
@@ -5103,16 +5100,14 @@ static void mobike_switch_remote(struct msg_digest *md, struct mobike *est_remot
 
 	if (mobike_check_established(st) &&
 	    !LHAS(st->hidden_variables.st_nat_traversal, NATED_HOST) &&
-	    (!sameaddr(&md->sender, &st->st_remoteaddr) ||
-	     hportof(&md->sender) != st->st_remoteport)) {
+	    (!sameaddr(&md->sender, &st->st_remote_endpoint) ||
+	     hportof(&md->sender) != endpoint_port(&st->st_remote_endpoint))) {
 		/* remember the established/old address and interface */
-		est_remote->remoteaddr = st->st_remoteaddr;
-		est_remote->remoteport = st->st_remoteport;
+		est_remote->remote = st->st_remote_endpoint;
 		est_remote->interface = st->st_interface;
 
 		/* set temp one and after the message sent reset it */
-		st->st_remoteaddr = md->sender;
-		st->st_remoteport = hportof(&md->sender);
+		st->st_remote_endpoint = md->sender;
 		st->st_interface = md->iface;
 		pexpect_st_local_endpoint(st);
 	}
@@ -5641,8 +5636,7 @@ static payload_master_t add_mobike_payloads;
 static bool add_mobike_payloads(struct state *st, pb_stream *pbs)
 {
 	ip_endpoint local_endpoint = st->st_mobike_local_endpoint;
-	ip_endpoint remote_endpoint = endpoint(&st->st_remoteaddr,
-					       st->st_remoteport);
+	ip_endpoint remote_endpoint = st->st_remote_endpoint;
 	return emit_v2N(v2N_UPDATE_SA_ADDRESSES, pbs) &&
 		ikev2_out_natd(&local_endpoint, &remote_endpoint,
 			       &st->st_ike_spis, pbs);
@@ -5929,7 +5923,7 @@ void ikev2_record_newaddr(struct state *st, void *arg_ip)
 	if (!mobike_check_established(st))
 		return;
 
-	if (!isanyaddr(&st->st_deleted_local_addr)) {
+	if (address_is_specified(&st->st_deleted_local_addr)) {
 		/*
 		 * A work around for delay between new address and new route
 		 * A better fix would be listen to  RTM_NEWROUTE, RTM_DELROUTE
@@ -5985,11 +5979,12 @@ static void initiate_mobike_probe(struct state *st, struct starter_end *this,
 	 * from the pool as a new source address?
 	 */
 
-	ipstr_buf s, g, b;
-	DBG(DBG_CONTROL, DBG_log("#%lu MOBIKE new source address %s remote %s and gateway %s",
-				st->st_serialno, ipstr(&this->addr, &s),
-				sensitive_ipstr(&st->st_remoteaddr, &b),
-				ipstr(&this->nexthop, &g)));
+	ipstr_buf s, g;
+	endpoint_buf b;
+	dbg("#%lu MOBIKE new source address %s remote %s and gateway %s",
+	    st->st_serialno, ipstr(&this->addr, &s),
+	    str_endpoint(&st->st_remote_endpoint, &b),
+	    ipstr(&this->nexthop, &g));
 	pexpect_st_local_endpoint(st);
 	/* XXX: why not local_endpoint or is this redundant */
 	st->st_mobike_local_endpoint =
@@ -6052,13 +6047,13 @@ void ikev2_addr_change(struct state *st)
 	struct starter_end this = {
 		.addrtype = KH_DEFAULTROUTE,
 		.nexttype = KH_DEFAULTROUTE,
-		.addr_family = st->st_remoteaddr.u.v4.sin_family
+		.addr_family = st->st_remote_endpoint.u.v4.sin_family
 	};
 
 	struct starter_end that = {
 		.addrtype = KH_IPADDR,
-		.addr_family = st->st_remoteaddr.u.v4.sin_family,
-		.addr = st->st_remoteaddr
+		.addr_family = st->st_remote_endpoint.u.v4.sin_family,
+		.addr = st->st_remote_endpoint
 	};
 
 	/*

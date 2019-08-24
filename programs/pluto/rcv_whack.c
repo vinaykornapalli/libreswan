@@ -176,7 +176,7 @@ static void key_add_request(const struct whack_message *msg)
 					   msg->pubkey_alg);
 
 		if (msg->keyval.len != 0) {
-			DBG_dump_chunk("add pubkey", msg->keyval);
+			DBG_dump_hunk("add pubkey", msg->keyval);
 			ugh = add_public_key(&keyid, PUBKEY_LOCAL,
 					     msg->pubkey_alg,
 					     &msg->keyval, &pluto_pubkeys);
@@ -459,7 +459,6 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 			/* we are redirecting all peers of one connection */
 			find_states_and_redirect(m->name, m->active_redirect_peer, redirect_gw);
 		}
-
 	}
 
 	/* update any socket buffer size before calling listen */

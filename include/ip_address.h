@@ -19,6 +19,7 @@
 #ifndef IP_ADDRESS_H
 #define IP_ADDRESS_H
 
+#include "lswcdefs.h"		/* for MUST_USE_RESULT */
 #include "shunk.h"
 #include "chunk.h"
 #include "err.h"
@@ -48,7 +49,7 @@ typedef struct {
 	 * (sinin_port - use ip_endpoint).  So much for an immutable
 	 * abstraction.
 	 */
-	const sa_family_t family; /* descriminator */
+	const struct ip_info *info; /* discriminator */
 	const union {
 		struct in_addr in;
 		struct in6_addr in6;
@@ -63,6 +64,10 @@ typedef struct {
 
 ip_address address_from_in_addr(const struct in_addr *in);
 ip_address address_from_in6_addr(const struct in6_addr *sin6);
+err_t data_to_address(const void *data, size_t sizeof_data,
+		      const struct ip_info *af, ip_address *dst) MUST_USE_RESULT;
+/* either SHUNK or CHUNK */
+#define hunk_to_address(HUNK, AF, DST) data_to_address(HUNK.ptr, HUNK.len, AF, DST)
 
 /*
  * Convert an address to a string:
@@ -114,20 +119,24 @@ const char *sensitive_ipstr(const ip_address *src, ipstr_buf *b);
  * unspecified (for instance IN6_IS_ADDR_UNSPECIFIED()) leaving the
  * term "unspecified" underspecified.
  *
- * Consequently, "invalid" refers to AF_UNSPEC, "any" refers to
- * AF_{INET,INET6)=0, and "specified" refers to other stuff.
+ * Consequently to identify an AF_UNSPEC address (i.e.,
+ * uninitialized), see if *_type() returns NULL.  There's an
+ * address_is_invalid() wrapper for completeness.
  */
 
-/* AF=AF_UNSPEC, ADDR = 0, */
+/* AF=AF_UNSPEC, ADDR = 0; aka all zeros */
 const ip_address address_invalid;
-bool address_is_invalid(const ip_address *address);
 
-/* AF=={INET,INET6}; ADDR = *; is this too general? */
-bool address_is_valid(const ip_address *address);
+/* returns NULL when address_invalid */
+const struct ip_info *address_type(const ip_address *address);
 
 /* AF={INET,INET6}, ADDR = 0; aka %any? */
-ip_address address_any(int af);
+ip_address address_any(const struct ip_info *info);
+
+/* mutually exclusive */
+#define address_is_invalid(A) (address_type(A) == NULL)
 bool address_is_any(const ip_address *address);
+bool address_is_specified(const ip_address *address);
 
 /*
  * Raw address bytes, both read-only and read-write.
@@ -135,27 +144,9 @@ bool address_is_any(const ip_address *address);
 shunk_t address_as_shunk(const ip_address *address);
 chunk_t address_as_chunk(ip_address *address);
 
-int address_type(const ip_address *address);
-const struct ip_info *address_info(const ip_address *address);
-
 /*
  * Old style.
  */
-
-/* network byte ordered */
-int nportof(const ip_address *src);
-ip_address nsetportof(int port, ip_address dst);
-
-/* host byte ordered */
-int hportof(const ip_address *src);
-ip_address hsetportof(int port, const ip_address dst);
-
-/* XXX: compatibility */
-#define portof(SRC) nportof((SRC))
-#define setportof(PORT, DST) { *(DST) = nsetportof(PORT, *(DST)); }
-
-struct sockaddr *sockaddrof(const ip_address *src);
-size_t sockaddrlenof(const ip_address *src);
 
 /* looks up names in DNS */
 extern err_t ttoaddr(const char *src, size_t srclen, int af, ip_address *dst);
@@ -166,23 +157,19 @@ extern err_t ttoaddr_num(const char *src, size_t srclen, int af, ip_address *dst
 /* RFC 1886 old IPv6 reverse-lookup format is the bulkiest */
 #define ADDRTOT_BUF     sizeof(address_reversed_buf)
 extern err_t tnatoaddr(const char *src, size_t srclen, int af, ip_address *dst);
-extern size_t addrtot(const ip_address *src, int format, char *buf, size_t buflen);
-
-/* initializations */
-extern err_t initaddr(const unsigned char *src, size_t srclen, int af,
-	       ip_address *dst);
 
 /* misc. conversions and related */
 extern int addrtypeof(const ip_address *src);
-extern size_t addrlenof(const ip_address *src);
-extern size_t addrbytesptr_read(const ip_address *src, const unsigned char **dst);
 extern int masktocount(const ip_address *src);
 
 /* tests */
 extern bool sameaddr(const ip_address *a, const ip_address *b);
 extern int addrcmp(const ip_address *a, const ip_address *b);
 extern bool sameaddrtype(const ip_address *a, const ip_address *b);
-extern int isanyaddr(const ip_address *src);
+
+/* XXX: use address_is_{invalid,any,specified}() instead */
+extern bool isanyaddr(const ip_address *src);
+
 extern int isloopbackaddr(const ip_address *src);
 
 #endif

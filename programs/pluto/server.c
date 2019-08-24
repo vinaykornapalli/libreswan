@@ -282,7 +282,7 @@ void free_ifaces(void)
 
 struct raw_iface *static_ifn = NULL;
 
-int create_socket(struct raw_iface *ifp, const char *v_name, int port)
+int create_socket(const struct raw_iface *ifp, const char *v_name, int port)
 {
 	int fd = socket(addrtypeof(&ifp->addr), SOCK_DGRAM, IPPROTO_UDP);
 	int fcntl_flags;
@@ -389,17 +389,22 @@ int create_socket(struct raw_iface *ifp, const char *v_name, int port)
 		return -1;
 	}
 
-	setportof(htons(port), &ifp->addr);
-	if (bind(fd, sockaddrof(&ifp->addr), sockaddrlenof(&ifp->addr)) < 0) {
-		ipstr_buf b;
-
-		LOG_ERRNO(errno, "bind() for %s/%s %s:%u in process_raw_ifaces()",
+	/*
+	 * ??? does anyone care about the value of port of ifp->addr?
+	 * Old code seemed to assume that it should be reset to pluto_port.
+	 * But only on successful bind.  Seems wrong or unnecessary.
+	 */
+	ip_endpoint if_endpoint = endpoint(&ifp->addr, port);
+	ip_sockaddr if_sa;
+	size_t if_sa_size = endpoint_to_sockaddr(&if_endpoint, &if_sa);
+	if (bind(fd, &if_sa.sa, if_sa_size) < 0) {
+		endpoint_buf b;
+		LOG_ERRNO(errno, "bind() for %s/%s %s in process_raw_ifaces()",
 			  ifp->name, v_name,
-			  ipstr(&ifp->addr, &b), (unsigned) port);
+			  str_endpoint(&if_endpoint, &b));
 		close(fd);
 		return -1;
 	}
-	setportof(htons(pluto_port), &ifp->addr);
 
 #if defined(HAVE_UDPFROMTO)
 	/* we are going to use udpfromto.c, so initialize it */
@@ -906,7 +911,6 @@ static void callback_handler(evutil_socket_t fd UNUSED,
 	passert(e->event != NULL);
 	event_free(e->event);
 	pfree(e);
-
 }
 
 extern void schedule_callback(const char *name, so_serial_t serialno,

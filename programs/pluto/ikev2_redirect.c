@@ -90,12 +90,10 @@ bool emit_redirect_notification_decoded_dest(
 		pb_stream *pbs)
 {
 	struct ikev2_redirect_part gwi;
-	size_t id_len;
-	const unsigned char *id_bytes;
+	shunk_t id;
 
 	if (dest_ip == NULL) {
-		id_len = strlen(dest_str);
-		id_bytes = (const unsigned char *)dest_str;
+		id = shunk1(dest_str);
 	} else {
 		passert(dest_str == NULL);
 
@@ -109,15 +107,15 @@ bool emit_redirect_notification_decoded_dest(
 		default:
 			bad_case(addrtypeof(dest_ip));
 		}
-		id_len = addrbytesptr_read(dest_ip, &id_bytes);
+		id = address_as_shunk(dest_ip);
 	}
 
-	if (id_len > 0xFF) {
+	if (id.len > 0xFF) {
 		/* ??? what should we do? */
 		loglog(RC_LOG_SERIOUS, "redirect destination longer than 255 octets; ignoring");
 		return false;
 	}
-	gwi.gw_identity_len = id_len;
+	gwi.gw_identity_len = id.len;
 
 	passert(nonce == NULL ||
 		(nonce->len >= IKEv2_MINIMUM_NONCE_SIZE &&
@@ -125,9 +123,9 @@ bool emit_redirect_notification_decoded_dest(
 
 	pb_stream gwid_pbs;
 	return
--		emit_v2Npl(ntype, pbs, &gwid_pbs) &&
+		emit_v2Npl(ntype, pbs, &gwid_pbs) &&
 		out_struct(&gwi, &ikev2_redirect_desc, &gwid_pbs, NULL) &&
-		out_raw(id_bytes, id_len , &gwid_pbs, "redirect ID") &&
+		out_raw(id.ptr, id.len , &gwid_pbs, "redirect ID") &&
 		(nonce == NULL || out_chunk(*nonce, &gwid_pbs, "redirect ID len")) &&
 		(close_output_pbs(&gwid_pbs), true);
 }
@@ -217,7 +215,7 @@ err_t parse_redirect_payload(pb_stream *input_pbs,
 			return ugh;
 		}
 	} else {
-		if (gw_info.gw_identity_len < af->ia_sz) {
+		if (gw_info.gw_identity_len < af->ip_size) {
 			return "transferred GW Identity Length is too small for an IP address";
 		}
 		if (!pbs_in_address(redirect_ip, af, input_pbs, "REDIRECT address")) {
@@ -248,7 +246,7 @@ err_t parse_redirect_payload(pb_stream *input_pbs,
 		if (nonce->len != len ||
 		    !memeq(nonce->ptr, input_pbs->cur, len)) {
 			DBG(DBG_CONTROL, {
-				DBG_dump_chunk("expected nonce", *nonce);
+				DBG_dump_hunk("expected nonce", *nonce);
 				DBG_dump("received nonce", input_pbs->cur, len);
 			});
 			return "received nonce is not the same as Ni";
@@ -370,7 +368,7 @@ void send_active_redirect_in_informational(struct state *st)
 		v2_msgid_update_sent(ike, &ike->sa, NULL /* new exchange */, MESSAGE_REQUEST);
 		ipstr_buf b;
 		libreswan_log("redirecting of peer %s successful",
-				sensitive_ipstr(&st->st_remoteaddr, &b));
+				sensitive_ipstr(&st->st_remote_endpoint, &b));
 	} else {
 		libreswan_log("redirect not successful");
 	}

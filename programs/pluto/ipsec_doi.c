@@ -156,7 +156,7 @@ bool accept_KE(chunk_t *dest, const char *val_name,
 	free_chunk_contents(dest); /* XXX: ever needed? */
 	*dest = clone_in_pbs_left_as_chunk(pbs, val_name);
 	if (DBGP(DBG_CRYPT)) {
-		DBG_dump_chunk("DH public value received:\n", *dest);
+		DBG_dump_hunk("DH public value received:\n", *dest);
 	}
 	return true;
 }
@@ -441,13 +441,13 @@ bool extract_peer_id(enum ike_id_type kind, struct id *peer, const pb_stream *id
 	case ID_KEY_ID:
 		setchunk(peer->name, id_pbs->cur, left);
 		DBG(DBG_PARSING,
-		    DBG_dump_chunk("KEY ID:", peer->name));
+		    DBG_dump_hunk("KEY ID:", peer->name));
 		break;
 
 	case ID_DER_ASN1_DN:
 		setchunk(peer->name, id_pbs->cur, left);
 		DBG(DBG_PARSING,
-		    DBG_dump_chunk("DER ASN1 DN:", peer->name));
+		    DBG_dump_hunk("DER ASN1 DN:", peer->name));
 		break;
 
 	case ID_NULL:
@@ -648,7 +648,7 @@ void lswlog_child_sa_established(struct lswlog *buf, struct state *st)
 		snprintf(oa, sizeof(oa),
 			 "%s:%d",
 			 sensitive_ipstr(&st->hidden_variables.st_natd, &ipb),
-			 st->st_remoteport);
+			 endpoint_port(&st->st_remote_endpoint));
 		lswlogs(buf, oa);
 	}
 

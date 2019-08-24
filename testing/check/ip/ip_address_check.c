@@ -33,9 +33,15 @@ static void check_str_address_raw(void)
 		const char sep;
 		const char *out;
 	} tests[] = {
-		/* basic */
+		/* any */
+		{ 4, "0.0.0.0", 0, "0.0.0.0", },
+		{ 6, "::", 0, "0:0:0:0:0:0:0:0", },
+		/* all */
+		{ 4, "1.2.3.4", 0, "1.2.3.4", },
+		{ 6, "1:2:3:4:5:6:7:8", 0, "1:2:3:4:5:6:7:8", },
+		/* local */
 		{ 4, "127.0.0.1", 0, "127.0.0.1", },
-		{ 6, "1:2::7:8", 0, "1:2:0:0:0:0:7:8", },
+		{ 6, "::1", 0, "0:0:0:0:0:0:0:1", },
 		/* different sepc */
 		{ 4, "127.0.0.1", '/', "127/0/0/1", },
 		{ 6, "1:2::7:8", '/', "1/2/0/0/0/0/7/8", },
@@ -59,6 +65,7 @@ static void check_str_address_raw(void)
 			FAIL_IN("ttoaddr failed: %s", err);
 			continue;
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
 		/* now convert it back */
 		address_buf buf;
@@ -80,7 +87,8 @@ static void check_str_address(void)
 		const char *out;
 	} tests[] = {
 		/* anything else? */
-		{ 4, "1.2.3.4",			"1.2.3.4" },
+		{ 4, "0.0.0.0", "0.0.0.0", },
+		{ 4, "1.2.3.4", "1.2.3.4" },
 
 		/* suppress leading zeros - 01 vs 1 */
 		{ 6, "1:12:3:14:5:16:7:18",	"1:12:3:14:5:16:7:18" },
@@ -112,6 +120,7 @@ static void check_str_address(void)
 			FAIL_IN("%s", err);
 			continue;
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
 		/* now convert it back */
 		address_buf buf;
@@ -147,6 +156,7 @@ static void check_str_address_sensitive(void)
 			FAIL_IN("%s", err);
 			continue;
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
 		/* now convert it back */
 		address_buf buf;
@@ -184,6 +194,7 @@ static void check_str_address_reversed(void)
 			FAIL_IN("%s", err);
 			continue;
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
 		address_reversed_buf buf;
 		const char *out = str_address_reversed(&a, &buf);
@@ -211,37 +222,36 @@ static void check_address_any(void)
 		PRINT_IN(stdout, "-> %s", any);
 
 		/* convert it *to* internal format */
-		ip_address a = address_any(SA_FAMILY(t->family));
+		ip_address a = address_any(IP_TYPE(t->family));
 		bool a_is_any = address_is_any(&a);
 		if (a_is_any != t->any) {
 			FAIL_IN("addres_is_any() returned %s, expected %s",
 				a_is_any ? "true" : "false", any);
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 	}
 }
 
-static void check_address_is_any(void)
+static void check_address_is(void)
 {
 	static const struct test {
 		int family;
 		const char *in;
+		bool invalid;
 		bool any;
+		bool specified;
 	} tests[] = {
-		{ 0, "<invalid>",		false },
-		{ 4, "0.0.0.0",			true },
-		{ 6, "::",			true },
-		{ 4, "1.2.3.4",			false },
-		{ 6, "1:12:3:14:5:16:7:18",	false },
-#if 0
-		{ 4, "%any",			true },
-		{ 6, "%any6",			true },
-#endif
+		{ 0, "<invalid>",		.invalid = true, },
+		{ 4, "0.0.0.0",			.any = true, },
+		{ 6, "::",			.any = true, },
+		{ 4, "1.2.3.4",			.specified = true, },
+		{ 6, "1:12:3:14:5:16:7:18",	.specified = true, },
 	};
 
 	for (size_t ti = 0; ti < elemsof(tests); ti++) {
 		const struct test *t = &tests[ti];
-		const char *any = t->any ? "true" : "false";
-		PRINT_IN(stdout, "-> %s", any);
+		PRINT_IN(stdout, "-> invalid: %s, any: %s, specified: %s",
+			 bool_str(t->invalid), bool_str(t->any), bool_str(t->specified));
 
 		/* convert it *to* internal format */
 		ip_address a;
@@ -253,11 +263,25 @@ static void check_address_is_any(void)
 				FAIL_IN("%s", err);
 			}
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
-		bool a_is_any = address_is_any(&a);
-		if (a_is_any != t->any) {
+		/* aka address_type(&a) == NULL; */
+		bool invalid = address_is_invalid(&a);
+		if (invalid != t->invalid) {
+			FAIL_IN("addres_is_invalid() returned %s, expected %s",
+				bool_str(invalid), bool_str(t->invalid));
+		}
+
+		bool any = address_is_any(&a);
+		if (any != t->any) {
 			FAIL_IN("addres_is_any() returned %s, expected %s",
-				a_is_any ? "true" : "false", any);
+				bool_str(any), bool_str(t->any));
+		}
+
+		bool specified = address_is_specified(&a);
+		if (specified != t->specified) {
+			FAIL_IN("addres_is_specified() returned %s, expected %s",
+				bool_str(specified), bool_str(t->specified));
 		}
 	}
 }
@@ -303,6 +327,7 @@ static void check_ttoaddr_dns(void)
 			/* convert it *to* internal format */
 			oops = ttoaddr(t->in, strlen(t->in), af, &a);
 		}
+		CHECK_TYPE(FAIL_IN, address_type(&a), t->family);
 
 		if (t->expectfailure && oops == NULL) {
 			FAIL_IN("expected failure, but it succeeded");
@@ -333,6 +358,6 @@ void ip_address_check(void)
 	check_str_address_sensitive();
 	check_str_address_reversed();
 	check_address_any();
-	check_address_is_any();
+	check_address_is();
 	check_ttoaddr_dns();
 }

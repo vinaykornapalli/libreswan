@@ -25,6 +25,8 @@
 #include <stddef.h>	/* size_t */
 #include <stdint.h>	/* uint8_t */
 
+#include "lswalloc.h"	/* for freeanychunk() refering to pfree() which can go away */
+
 /*
  * chunk is a simple pointer-and-size abstraction
  *
@@ -76,6 +78,7 @@ extern const chunk_t empty_chunk;
 #define PRI_CHUNK "%p@%zu"
 #define pri_chunk(CHUNK) (CHUNK).ptr, (CHUNK).len
 
+chunk_t chunk_from_hex(const char *hex, const char *name);
 
 /*
  * Old stuff that can go away.
@@ -94,8 +97,5 @@ extern const chunk_t empty_chunk;
 /* replaced by clone_chunk() */
 #define clonetochunk(ch, addr, size, name) \
 	{ (ch).ptr = clone_bytes((addr), (ch).len = (size), name); }
-
-/* unconditional */
-void DBG_dump_chunk(const char *prefix, chunk_t chunk);
 
 #endif

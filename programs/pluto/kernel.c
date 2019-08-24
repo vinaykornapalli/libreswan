@@ -183,7 +183,7 @@ void add_bare_shunt(const ip_subnet *ours, const ip_subnet *his,
 
 	bs->said.proto = SA_INT;
 	bs->said.spi = htonl(shunt_spi);
-	bs->said.dst = address_any(subnettypeof(ours));
+	bs->said.dst = address_any(subnet_type(ours));
 
 	bs->count = 0;
 	bs->last_activity = mononow();
@@ -195,7 +195,6 @@ void add_bare_shunt(const ip_subnet *ours, const ip_subnet *his,
 	/* report duplication; this should NOT happen */
 	if (bspp != NULL)
 		log_bare_shunt("CONFLICTING      new", bs);
-
 }
 
 
@@ -403,14 +402,13 @@ static void jam_common_shell_out(jambuf_t *buf, const struct connection *c,
 				 const struct spd_route *sr, struct state *st,
 				 bool inbytes, bool outbytes)
 {
- 	/* change VERSION when interface spec changes */
+	/* change VERSION when interface spec changes */
 	jam(buf, "PLUTO_VERSION='2.0' ");
 	jam(buf, "PLUTO_CONNECTION='%s' ", c->name);
 	jam(buf, "PLUTO_INTERFACE='%s' ", (c->interface == NULL ? "NULL" :
 					  c->interface->ip_dev->id_vname));
 
-	if (addrlenof(&sr->this.host_nexthop) != 0 &&
-	    !isanyaddr(&sr->this.host_nexthop)) {
+	if (address_is_specified(&sr->this.host_nexthop)) {
 		jam(buf, "PLUTO_NEXT_HOP='");
 		jam_address(buf, &sr->this.host_nexthop);
 		jam(buf, "' ");
@@ -438,7 +436,7 @@ static void jam_common_shell_out(jambuf_t *buf, const struct connection *c,
 	jam_address(buf, &ta);
 	jam(buf, "' ");
 
-	if (!isanyaddr(&sr->this.host_vtiip.addr)) {
+	if (subnet_is_specified(&sr->this.host_vtiip)) {
 		jam(buf, "VTI_IP='");
 		jam_subnet(buf, &sr->this.host_vtiip);
 		jam(buf, "' ");
@@ -521,8 +519,7 @@ static void jam_common_shell_out(jambuf_t *buf, const struct connection *c,
 		jam(buf, "' ");
 	}
 
-	if (addrlenof(&sr->this.host_srcip) != 0 &&
-	    !isanyaddr(&sr->this.host_srcip)) {
+	if (address_is_specified(&sr->this.host_srcip)) {
 		jam(buf, "PLUTO_MY_SOURCEIP='");
 		jam_address(buf, &sr->this.host_srcip);
 		jam(buf, "' ");
@@ -1336,7 +1333,7 @@ static bool fiddle_bare_shunt(const ip_address *src, const ip_address *dst,
 			const char *why)
 {
 	ip_subnet this_client, that_client;
-	const ip_address null_host = address_any(addrtypeof(src));
+	const ip_address null_host = address_any(address_type(src));
 
 	DBG(DBG_CONTROL, DBG_log("fiddle_bare_shunt called"));
 
@@ -1473,7 +1470,7 @@ bool eroute_connection(const struct spd_route *sr,
 		"eroute_connection %s", opname);
 
 	if (sa_proto == SA_INT)
-		peer = address_any(addrtypeof(&peer));
+		peer = address_any(address_type(&peer));
 
 	if (sr->this.has_cat) {
 		ip_subnet client;
@@ -1963,11 +1960,11 @@ static bool setup_half_ipsec_sa(struct state *st, bool inbound)
 		if (st->hidden_variables.st_nat_traversal & NAT_T_DETECTED) {
 			natt_type = ESPINUDP_WITH_NON_ESP;
 			if (inbound) {
-				natt_sport = st->st_remoteport;
+				natt_sport = endpoint_port(&st->st_remote_endpoint);
 				natt_dport = endpoint_port(&st->st_interface->local_endpoint);
 			} else {
 				natt_sport = endpoint_port(&st->st_interface->local_endpoint);
-				natt_dport = st->st_remoteport;
+				natt_dport = endpoint_port(&st->st_remote_endpoint);
 			}
 			natt_oa = st->hidden_variables.st_nat_oa;
 		}
@@ -2427,11 +2424,12 @@ static bool teardown_half_ipsec_sa(struct state *st, bool inbound)
 	 * and it has now the new address (but we need
 	 * the old one).
 	 */
-	if (!sameaddr(&st->st_remoteaddr, &c->spd.that.host_addr) &&
-			!isanyaddr(&c->temp_vars.redirect_ip)) {
+
+	if (!sameaddr(&st->st_remote_endpoint, &c->spd.that.host_addr) &&
+	    address_is_specified(&c->temp_vars.redirect_ip)) {
 		redirected = TRUE;
 		tmp_ip = c->spd.that.host_addr;
-		c->spd.that.host_addr = st->st_remoteaddr;
+		c->spd.that.host_addr = st->st_remote_endpoint;
 	}
 
 	/* ??? CLANG 3.5 thinks that c might be NULL */
@@ -2939,14 +2937,11 @@ bool route_and_eroute(struct connection *c,
 			if (!route_installed)
 				DBG(DBG_CONTROL,
 					DBG_log("route command returned an error"));
-
-
 		} else {
 			route_installed = do_command(c, sr, "route", st);
 			if (!route_installed)
 				DBG(DBG_CONTROL,
 					DBG_log("route command returned an error"));
-
 
 			if (!do_command(ro, sr, "unroute", st)) {
 				DBG(DBG_CONTROL,
@@ -3033,8 +3028,6 @@ bool route_and_eroute(struct connection *c,
 			if (!do_command(c, sr, "down", st))
 				DBG(DBG_CONTROL,
 					DBG_log("down command returned an error"));
-
-
 		}
 
 		if (eroute_installed) {
@@ -3416,11 +3409,11 @@ bool get_sa_info(struct state *st, bool inbound, deltatime_t *ago /* OUTPUT */)
 	 * spd.that.host_addr temporarily, we reset
 	 * it back later
 	 */
-	if (!sameaddr(&st->st_remoteaddr, &c->spd.that.host_addr) &&
-			!isanyaddr(&c->temp_vars.redirect_ip)) {
+	if (!sameaddr(&st->st_remote_endpoint, &c->spd.that.host_addr) &&
+	    address_is_specified(&c->temp_vars.redirect_ip)) {
 		redirected = TRUE;
 		tmp_ip = c->spd.that.host_addr;
-		c->spd.that.host_addr = st->st_remoteaddr;
+		c->spd.that.host_addr = st->st_remote_endpoint;
 	}
 
 	if (inbound) {
@@ -3553,7 +3546,7 @@ bool orphan_holdpass(const struct connection *c, struct spd_route *sr,
 
 		bs->said.proto = SA_INT;
 		bs->said.spi = htonl(negotiation_shunt);
-		bs->said.dst = address_any(subnettypeof(&sr->this.client));
+		bs->said.dst = address_any(subnet_type(&sr->this.client));
 
 		bs->count = 0;
 		bs->last_activity = mononow();

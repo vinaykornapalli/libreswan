@@ -41,8 +41,10 @@ LOCAL_MAKE_FLAGS=
 MAKE_BASE = base
 MAKE_INSTLL_BASE = install-base
 
+ifdef TRAVIS_ENABLED
 BRANCH = $(shell test -d .git -o -f .git && (git rev-parse --abbrev-ref HEAD || echo ''))
-TRAVIS_BANCH = $(call W1, $(BRANCH),'')
+TRAVIS_BANCH ?= $(call W1, $(BRANCH),'')
+endif
 ifeq ($(TRAVIS_BANCH), travis)
 	DISTRO =  $(call W2, $(BRANCH),fedora)
 	DISTRO_REL = $(call W3, $(BRANCH),27)
@@ -99,11 +101,16 @@ use_unbound_event_h_copy:
 # end  of Distribution tweaks
 #
 
+.PHONY: install-testing-rpm-dep
+install-testing-rpm-dep: install--rpm-dep
+	$(if $(KVM_INSTALL_PACKAGES), $(KVM_PACKAGE_INSTALL) $(KVM_INSTALL_PACKAGES))
+	$(if $(KVM_UPGRADE_PACKAGES), $(KVM_PACKAGE_UPGRADE) $(KVM_UPGRADE_PACKAGES))
+
 .PHONY: install-rpm-dep
 RUN_RPMS = $$(dnf deplist $(EXCLUDE_RPM_ARCH) libreswan | awk '/provider:/ {print $$2}' | sort -u)
 install-rpm-dep:
-	$(if $(KVM_PACKAGES), $(KVM_PACKAGE_INSTALL) $(KVM_PACKAGES))
-	$(if $(KVM_PACKAGES), $(KVM_PACKAGE_UPGRADE) $(KVM_PACKAGES))
+	$(if $(KVM_INSTALL_PACKAGES), $(KVM_PACKAGE_INSTALL) $(KVM_INSTALL_PACKAGES))
+	$(if $(KVM_UPGRADE_PACKAGES), $(KVM_PACKAGE_UPGRADE) $(KVM_UPGRADE_PACKAGES))
 	dnf builddep -y libreswan
 	dnf install -y \@development-tools
 	dnf install -y --skip-broken $(RUN_RPMS)
@@ -158,6 +165,8 @@ travis-ubuntu-xenial: ubuntu-xenial-packages
 
 .PHONY: docker-build
 docker-build: dockerfile
+	# --volume is only in podman
+	# $(DOCKER_CMD) build -t $(DI_T) --volume /home/build/libreswan:/home/build/libreswan -f $(DOCKERFILE) .
 	$(DOCKER_CMD) build -t $(DI_T) -f $(DOCKERFILE) .
 
 .PHONY: docker-ssh-image
@@ -181,11 +190,11 @@ docker-instance-name:
 
 .PHONY: travis-docker-make
 travis-docker-make:
-	$(DOCKER_CMD) exec -ti $(DI_T) /bin/bash -c "cd /home/build/libreswan && $(MAKE) make-base"
+	$(DOCKER_CMD) exec -ti $(DI_T) /bin/bash -c "cd /home/build/libreswan && $(MAKE) DISTRO=$(DISTRO) DISTRO_REL=$(DISTRO_REL) make-base"
 
 .PHONY: travis-docker-make-install
 travis-docker-make-install:
-	$(DOCKER_CMD) exec -ti $(DI_T) /bin/bash -c "cd /home/build/libreswan && $(MAKE) make-install"
+	$(DOCKER_CMD) exec -ti $(DI_T) /bin/bash -c "cd /home/build/libreswan && $(MAKE) DISTRO=$(DISTRO) DISTRO_REL=$(DISTRO_REL) make-install"
 
 .PHONY: docker-exec
 docker-exec:

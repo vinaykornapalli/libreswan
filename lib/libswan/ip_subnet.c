@@ -22,14 +22,30 @@
 #include "libreswan/passert.h"
 #include "lswlog.h"	/* for pexpect() */
 
+ip_subnet subnet(const ip_address *address, int maskbits, int port)
+{
+	ip_endpoint e = endpoint(address, port);
+	ip_subnet s = {
+		.addr = e,
+		.maskbits = maskbits,
+	};
+	return s;
+}
+
+
 ip_endpoint subnet_endpoint(const ip_subnet *src)
 {
 	return src->addr;
 }
 
-const struct ip_info *subnet_info(const ip_subnet * src)
+const struct ip_info *subnet_type(const ip_subnet *src)
 {
-	return address_info(&src->addr);
+	return endpoint_type(&src->addr);
+}
+
+bool subnet_is_specified(const ip_subnet *s)
+{
+	return endpoint_is_specified(&s->addr);
 }
 
 /*

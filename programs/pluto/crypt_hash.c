@@ -20,6 +20,7 @@
 #include "lswalloc.h"
 #include "lswlog.h"
 #include "ike_alg.h"
+#include "ike_alg_hash_ops.h"
 #include "crypt_hash.h"
 #include "crypt_symkey.h"
 
@@ -45,18 +46,6 @@ struct crypt_hash *crypt_hash_init(const char *name, const struct hash_desc *has
 		.desc = hash_desc,
 	};
 	return hash;
-}
-
-void crypt_hash_digest_chunk(struct crypt_hash *hash,
-			     const char *name, chunk_t chunk)
-{
-	if (DBGP(DBG_CRYPT)) {
-		DBG_log("%s hash %s digest %s-chunk@%p (length %zu)",
-			hash->name, hash->desc->common.name,
-			name, chunk.ptr, chunk.len);
-		DBG_dump_chunk(NULL, chunk);
-	}
-	hash->desc->hash_ops->digest_bytes(hash->context, name, chunk.ptr, chunk.len);
 }
 
 void crypt_hash_digest_symkey(struct crypt_hash *hash,
@@ -123,7 +112,7 @@ chunk_t crypt_hash_final_chunk(struct crypt_hash **hashp)
 		DBG_log("%s hash %s final chunk@%p (length %zu)",
 			hash->name, hash->desc->common.name,
 			chunk.ptr, chunk.len);
-		DBG_dump_chunk(NULL, chunk);
+		DBG_dump_hunk(NULL, chunk);
 	}
 	pfree(*hashp);
 	*hashp = hash = NULL;
@@ -136,6 +125,10 @@ PK11SymKey *crypt_hash_symkey(const char *name, const struct hash_desc *hash_des
 	DBGF(DBG_CRYPT, "%s hash %s %s-key@%p (size %zu)",
 	     name, hash_desc->common.name,
 	     symkey_name, symkey, sizeof_symkey(symkey));
-	return hash_desc->hash_ops->symkey_to_symkey(hash_desc, name,
-						     symkey_name, symkey);
+	struct crypt_hash *hash = crypt_hash_init(name, hash_desc);
+	crypt_hash_digest_symkey(hash, symkey_name, symkey);
+	chunk_t out = crypt_hash_final_chunk(&hash);
+	PK11SymKey *key = symkey_from_hunk(name, out);
+	freeanychunk(out);
+	return key;
 }

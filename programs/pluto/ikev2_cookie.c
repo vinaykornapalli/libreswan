@@ -69,7 +69,7 @@ static bool compute_v2_cookie_from_md(v2_cookie_t *cookie,
 	struct crypt_hash *ctx = crypt_hash_init("IKEv2 COOKIE",
 						 &ike_alg_hash_sha2_256);
 
-	crypt_hash_digest_chunk(ctx, "Ni", Ni);
+	crypt_hash_digest_hunk(ctx, "Ni", Ni);
 
 	shunk_t IPi = address_as_shunk(&md->sender);
 	crypt_hash_digest_bytes(ctx, "IPi", IPi.ptr, IPi.len);
@@ -175,8 +175,8 @@ bool v2_rejected_initiator_cookie(struct msg_digest *md,
 	chunk_t remote_cookie = same_in_pbs_left_as_chunk(&cookie_digest->pbs);
 
 	if (DBGP(DBG_BASE)) {
-		DBG_dump_chunk("received cookie", remote_cookie);
-		DBG_dump_chunk("computed cookie", local_cookie);
+		DBG_dump_hunk("received cookie", remote_cookie);
+		DBG_dump_hunk("computed cookie", local_cookie);
 	}
 
 	if (!chunk_eq(local_cookie, remote_cookie)) {

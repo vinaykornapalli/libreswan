@@ -82,6 +82,7 @@
 #include "ike_alg_integ.h"
 #include "ike_alg_encrypt.h"
 #include "ip_address.h"
+#include "ip_info.h"
 
 /* required for Linux 2.6.26 kernel and later */
 #ifndef XFRM_STATE_AF_UNSPEC
@@ -876,7 +877,7 @@ static bool create_xfrm_migrate_sa(struct state *st, const int dir,
 	const ip_address *src, *dst;
 	const ip_subnet *src_client, *dst_client;
 
-	if (endpoint_is_valid(&st->st_mobike_local_endpoint)) {
+	if (endpoint_type(&st->st_mobike_local_endpoint) != NULL) {
 		char *n = jam_str(text_said, SAMIGTOT_BUF, "initiator migrate kernel SA ");
 		passert((SAMIGTOT_BUF - strlen(text_said)) > SATOT_BUF);
 		pexpect_st_local_endpoint(st);
@@ -893,7 +894,7 @@ static bool create_xfrm_migrate_sa(struct state *st, const int dir,
 			sa.spi = proto_info->our_spi;
 			set_text_said(n, dst, sa.spi, proto);
 			if (natt_type != 0) {
-				natt_sport = st->st_remoteport;
+				natt_sport = endpoint_port(&st->st_remote_endpoint);
 				natt_dport = endpoint_port(&st->st_mobike_local_endpoint);
 			}
 		} else {
@@ -907,13 +908,13 @@ static bool create_xfrm_migrate_sa(struct state *st, const int dir,
 			set_text_said(n, src, sa.spi, proto);
 			if (natt_type != 0) {
 				natt_sport = endpoint_port(&st->st_mobike_local_endpoint);
-				natt_dport = st->st_remoteport;
+				natt_dport = endpoint_port(&st->st_remote_endpoint);
 			}
 		}
 	} else {
 		char *n = jam_str(text_said, SAMIGTOT_BUF, "responder migrate kernel SA ");
 		passert((SAMIGTOT_BUF - strlen(text_said)) > SATOT_BUF);
-		old_port = st->st_remoteport;
+		old_port = endpoint_port(&st->st_remote_endpoint);
 		new_endpoint = st->st_mobike_remote_endpoint;
 
 		if (dir == XFRM_POLICY_IN || dir == XFRM_POLICY_FWD) {
@@ -1776,10 +1777,10 @@ static void netlink_acquire(struct nlmsghdr *n)
 	 */
 	if (NULL == (ugh = xfrm_to_endpoint(family, srcx, acquire->sel.sport, &src)) &&
 	    NULL == (ugh = xfrm_to_endpoint(family, dstx, acquire->sel.dport, &dst)) &&
-		NULL == (ugh = src_proto == dst_proto ?
-			NULL : "src and dst protocols differ") &&
-		NULL == (ugh = addrtosubnet(&src, &ours)) &&
-		NULL == (ugh = addrtosubnet(&dst, &his)))
+	    NULL == (ugh = (src_proto == dst_proto ?
+			NULL : "src and dst protocols differ")) &&
+	    NULL == (ugh = addrtosubnet(&src, &ours)) &&
+	    NULL == (ugh = addrtosubnet(&dst, &his)))
 		record_and_initiate_opportunistic(&ours, &his, transport_proto,
 #ifdef HAVE_LABELED_IPSEC
 						uctx,
@@ -1826,8 +1827,6 @@ static void process_addr_chage(struct nlmsghdr *n)
 	struct ifaddrmsg *nl_msg = NLMSG_DATA(n);
 	struct rtattr *rta = IFLA_RTA(nl_msg);
 	size_t msg_size = IFA_PAYLOAD (n);
-	chunk_t local_addr = EMPTY_CHUNK;
-	chunk_t addr = EMPTY_CHUNK;
 	ip_address ip;
 	ipstr_buf ip_str;
 
@@ -1840,10 +1839,8 @@ static void process_addr_chage(struct nlmsghdr *n)
 
 		switch (rta->rta_type) {
 		case IFA_LOCAL:
-			local_addr.ptr = RTA_DATA(rta);
-			local_addr.len = RTA_PAYLOAD(rta);
-			ugh = initaddr(local_addr.ptr, local_addr.len,
-					nl_msg->ifa_family, &ip);
+			ugh = data_to_address(RTA_DATA(rta), RTA_PAYLOAD(rta)/*size*/,
+					      aftoinfo(nl_msg->ifa_family), &ip);
 			if (ugh != NULL) {
 				libreswan_log("ERROR IFA_LOCAL invalid %s", ugh);
 			} else  {
@@ -1855,9 +1852,8 @@ static void process_addr_chage(struct nlmsghdr *n)
 			break;
 
 		case IFA_ADDRESS:
-			addr.ptr = RTA_DATA(rta);
-			addr.len = RTA_PAYLOAD(rta);
-			ugh = initaddr(addr.ptr, addr.len, nl_msg->ifa_family, &ip);
+			ugh = data_to_address(RTA_DATA(rta), RTA_PAYLOAD(rta)/*size*/,
+					      aftoinfo(nl_msg->ifa_family), &ip);
 			if (ugh != NULL) {
 				libreswan_log("ERROR IFA_ADDRESS invalid %s",
 						ugh);
@@ -2839,7 +2835,7 @@ static err_t netlink_migrate_sa_check(void)
 	}
 }
 
-static bool netlink_poke_ipsec_policy_hole(struct raw_iface *ifp, int fd)
+static bool netlink_poke_ipsec_policy_hole(const struct raw_iface *ifp, int fd)
 {
 	struct xfrm_userpolicy_info policy = {
 		.action = XFRM_POLICY_ALLOW,

@@ -48,29 +48,43 @@ typedef struct {
 } ip_subnet;
 
 /*
+ * Construct a subnet exactly as specified (presumably caller has
+ * performed all checks).
+ */
+ip_subnet subnet(const ip_address *address, int maskbits, int port);
+
+/*
  * Format as a string.
  */
 
 typedef struct {
 	char buf[sizeof(address_buf) + 4/*/NNN*/];
 } subnet_buf;
-const char *str_subnet(const ip_subnet *subnet, subnet_buf *out);
-void jam_subnet(struct lswlog *buf, const ip_subnet *subnet);
-
-const struct ip_info *subnet_info(const ip_subnet *subnet);
+extern const char *str_subnet(const ip_subnet *subnet, subnet_buf *out);
+extern void jam_subnet(struct lswlog *buf, const ip_subnet *subnet);
 
 /*
  * Extract details
  */
 
+/* mutually exclusive */
+#if 0
+extern const ip_subnet subnet_invalid;
+#define subnet_is_invalid(S) (subnet_type(S) == NULL)
+bool subnet_is_any(const ip_subnet *subnet);
+#endif
+bool subnet_is_specified(const ip_subnet *subnet);
+
+const struct ip_info *subnet_type(const ip_subnet *subnet);
+
 /* when applied to an address, leaves just the routing prefix */
-ip_address subnet_mask(const ip_subnet *subnet);
+extern ip_address subnet_mask(const ip_subnet *subnet);
 
 /* [floor..ceiling] vs [floor..roof) */
 /* PREFIX&MASK; aka IPv4 network, IPv6 anycast */
-ip_address subnet_floor(const ip_subnet *subnet);
+extern ip_address subnet_floor(const ip_subnet *subnet);
 /* PREFIX|~MASK; aka IPv4 broadcast but not IPv6 */
-ip_address subnet_ceiling(const ip_subnet *subnet);
+extern ip_address subnet_ceiling(const ip_subnet *subnet);
 
 /* PREFIX|HOST:PORT */
 ip_endpoint subnet_endpoint(const ip_subnet *subnet);
@@ -90,7 +104,6 @@ extern err_t addrtosubnet(const ip_address *addr, ip_subnet *dst);
 /* misc. conversions and related */
 extern err_t rangetosubnet(const ip_address *from, const ip_address *to,
 		    ip_subnet *dst);
-extern int subnettypeof(const ip_subnet *src);
 
 /* tests */
 extern bool samesubnet(const ip_subnet *a, const ip_subnet *b);

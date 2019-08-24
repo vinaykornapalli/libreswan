@@ -85,7 +85,7 @@ void fixup_v1_HASH(struct state *st, const struct v1_hash_fixup *fixup,
 	case V1_HASH_2:
 		/* HASH(2) = prf(SKEYID_a, M-ID | Ni_b | payload ) */
 		crypt_prf_update_bytes(hash, "M-ID", &raw_msgid, sizeof(raw_msgid));
-		crypt_prf_update_chunk(hash, "Ni_b", st->st_ni);
+		crypt_prf_update_hunk(hash, "Ni_b", st->st_ni);
 		crypt_prf_update_bytes(hash, "payload",
 				       fixup->body, roof - fixup->body);
 		break;
@@ -93,8 +93,8 @@ void fixup_v1_HASH(struct state *st, const struct v1_hash_fixup *fixup,
 		/* HASH(3) = prf(SKEYID_a, 0 | M-ID | Ni_b | Nr_b) */
 		crypt_prf_update_byte(hash, "0", 0);
 		crypt_prf_update_bytes(hash, "M-ID", &raw_msgid, sizeof(raw_msgid));
-		crypt_prf_update_chunk(hash, "Ni_b", st->st_ni);
-		crypt_prf_update_chunk(hash, "Nr_b", st->st_nr);
+		crypt_prf_update_hunk(hash, "Ni_b", st->st_ni);
+		crypt_prf_update_hunk(hash, "Nr_b", st->st_nr);
 		break;
 	default:
 		bad_case(fixup->hash_type);
@@ -104,7 +104,7 @@ void fixup_v1_HASH(struct state *st, const struct v1_hash_fixup *fixup,
 	crypt_prf_final_bytes(&hash, fixup->hash_data.ptr, fixup->hash_data.len);
 	if (DBGP(DBG_BASE)) {
 		DBG_log("%s HASH(%u):", fixup->what, fixup->hash_type);
-		DBG_dump_chunk(NULL, fixup->hash_data);
+		DBG_dump_hunk(NULL, fixup->hash_data);
 	}
 }
 
@@ -146,7 +146,7 @@ bool check_v1_HASH(enum v1_hash_type type, const char *what,
 	if (!chunk_eq(received_hash, expected.hash_data)) {
 		if (DBGP(DBG_BASE)) {
 			DBG_log("received %s HASH_DATA:", what);
-			DBG_dump_chunk(NULL, received_hash);
+			DBG_dump_hunk(NULL, received_hash);
 		}
 		loglog(RC_LOG_SERIOUS,
 		       "received '%s' message HASH(%u) data does not match computed value",

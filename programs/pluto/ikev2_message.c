@@ -35,6 +35,7 @@
 #include "connections.h"
 #include "lswlog.h"
 #include "ike_alg.h"
+#include "ike_alg_encrypt_ops.h"	/* XXX: oops */
 #include "pluto_stats.h"
 #include "demux.h"	/* for struct msg_digest */
 #include "rnd.h"
@@ -398,7 +399,7 @@ static stf_status ikev2_encrypt_msg(struct ike_sa *ike,
 		size_t aad_size = enc_start - aad_start - wire_iv_size;
 
 		DBG(DBG_CRYPT,
-		    DBG_dump_chunk("Salt before authenticated encryption:", salt);
+		    DBG_dump_hunk("Salt before authenticated encryption:", salt);
 		    DBG_dump("IV before authenticated encryption:",
 			     wire_iv_start, wire_iv_size);
 		    DBG_dump("AAD before authenticated encryption:",
@@ -563,7 +564,7 @@ static bool ikev2_verify_and_decrypt_sk_payload(struct ike_sa *ike,
 		size_t aad_size = enc_start - auth_start - wire_iv_size;
 
 		DBG(DBG_CRYPT,
-		    DBG_dump_chunk("Salt before authenticated decryption:", salt);
+		    DBG_dump_hunk("Salt before authenticated decryption:", salt);
 		    DBG_dump("IV before authenticated decryption:",
 			     wire_iv_start, wire_iv_size);
 		    DBG_dump("AAD before authenticated decryption:",

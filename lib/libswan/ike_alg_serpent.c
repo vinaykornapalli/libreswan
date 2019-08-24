@@ -22,6 +22,7 @@
 #include "lswlog.h"
 #include "ike_alg.h"
 #include "ike_alg_encrypt.h"
+#include "ike_alg_encrypt_ops.h"
 #include "sadb.h"
 
 #define  SERPENT_CBC_BLOCK_SIZE (128 / BITS_PER_BYTE)
@@ -72,6 +73,7 @@ static void serpent_check(const struct encrypt_desc *encrypt UNUSED)
 }
 
 static const struct encrypt_ops serpent_encrypt_ops = {
+	.backend = "serpent",
 	.check = serpent_check,
 	.do_crypt = do_serpent,
 };

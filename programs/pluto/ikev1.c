@@ -157,6 +157,7 @@
 #include "hostpair.h"
 #include "ip_address.h"
 #include "ikev1_hash.h"
+#include "ike_alg_encrypt_ops.h"	/* XXX: oops */
 
 #ifdef HAVE_NM
 #include "kernel.h"
@@ -968,7 +969,6 @@ void init_ikev1(void)
 					enum_short_name(&timer_event_names,
 							t->timeout_event));
 			}
-
 		}
 	}
 }
@@ -1132,7 +1132,7 @@ static stf_status informational(struct state *st, struct msg_digest *md)
 						if (tmp_spd->that.id.name.ptr
 						    != NULL)
 							DBG(DBG_CONTROLMORE,
-							    DBG_dump_chunk(
+							    DBG_dump_hunk(
 								    "that id name",
 								    tmp_spd->
 								    that.id.
@@ -2808,12 +2808,11 @@ void complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 
 		/* if requested, send the new reply packet */
 		if (smc->flags & SMF_REPLY) {
-			ipstr_buf b;
+			endpoint_buf b;
 			endpoint_buf b2;
 			pexpect_st_local_endpoint(st);
-			dbg("sending reply packet to %s:%u (from %s)",
-			    ipstr(&st->st_remoteaddr, &b),
-			    st->st_remoteport,
+			dbg("sending reply packet to %s (from %s)",
+			    str_endpoint(&st->st_remote_endpoint, &b),
 			    str_endpoint(&st->st_interface->local_endpoint, &b2));
 
 			close_output_pbs(&reply_stream); /* good form, but actually a no-op */
@@ -2991,7 +2990,7 @@ void complete_v1_state_transition(struct msg_digest **mdp, stf_status result)
 		 */
 		if (IS_ISAKMP_SA_ESTABLISHED(st->st_state)) {
 			if (dpd_init(st) != STF_OK) {
-		                loglog(RC_LOG_SERIOUS, "DPD initialization failed - continuing without DPD");
+				loglog(RC_LOG_SERIOUS, "DPD initialization failed - continuing without DPD");
 			}
 		}
 

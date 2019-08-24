@@ -59,6 +59,7 @@
 #include "whack.h"      /* for RC_LOG_SERIOUS */
 #include "keys.h"
 #include "ip_address.h"
+#include "ip_info.h"
 
 #ifdef HAVE_BROKEN_POPEN
 /*
@@ -135,12 +136,12 @@ struct raw_iface *find_raw_ifaces4(void)
 
 	/* bind the socket */
 	{
-		ip_address any = address_any(AF_INET);
-		setportof(htons(pluto_port), &any);
-		if (bind(master_sock, sockaddrof(&any),
-			 sockaddrlenof(&any)) < 0)
-			EXIT_LOG_ERRNO(errno,
-				       "bind() failed in find_raw_ifaces4()");
+		ip_address any = address_any(&ipv4_info);
+		ip_endpoint any_ep = endpoint(&any, pluto_port);
+		ip_sockaddr any_sa;
+		size_t any_sa_size = endpoint_to_sockaddr(&any_ep, &any_sa);
+		if (bind(master_sock, &any_sa.sa, any_sa_size) < 0)
+			EXIT_LOG_ERRNO(errno, "bind() failed in %s()", __func__);
 	}
 
 	/* a million interfaces is probably the maximum, ever... */
@@ -405,10 +406,9 @@ struct raw_iface *find_raw_ifaces6(void)
 
 			happy(ttoaddr_num(sb, 0, AF_INET6, &ri.addr));
 
-			if (!isanyaddr(&ri.addr)) {
-				DBG(DBG_CONTROL,
-				    DBG_log("found %s with address %s",
-					    ri.name, sb));
+			if (address_is_specified(&ri.addr)) {
+				dbg("found %s with address %s",
+				    ri.name, sb);
 				ri.next = rifaces;
 				rifaces = clone_thing(ri, "struct raw_iface");
 			}

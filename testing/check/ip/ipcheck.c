@@ -31,6 +31,8 @@ int main(int argc, char *argv[])
 {
 	log_ip = false; /* force sensitive */
 
+	init_ip_info();
+
 	for (char **argp = argv+1; argp < argv+argc; argp++) {
 		if (streq(*argp, "--nodns")) {
 			use_dns = false;
@@ -45,7 +47,10 @@ int main(int argc, char *argv[])
 	ip_endpoint_check();
 	ip_range_check();
 	ip_subnet_check();
+	ip_said_check();
+
 	if (fails > 0) {
+		fprintf(stderr, "TOTAL FAILURES: %d\n", fails);
 		return 1;
 	} else {
 		return 0;
