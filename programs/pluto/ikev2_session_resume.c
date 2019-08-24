@@ -229,8 +229,8 @@ stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *m
                  chunk_t tk_payl;
                  clonetochunk(tk_payl,ntfy->pbs.cur, pbs_left(&ntfy->pbs),"Ticket Opaque stored");
                  /*If we are unable to form a state from ticket we should send No Acknowledgement*/
-                 if(!ticket_to_st(st , tk_payl) && !emit_v2N(v2N_TICKET_NACK, &rbody))
-                    return STF_INTERNAL_ERROR;
+                 if(!ticket_to_st(st , tk_payl))
+                    st->st_send_ticket_nack =TRUE;
                  freeanychunk(tk_payl);
                  break;
               default:
@@ -295,7 +295,11 @@ static stf_status ikev2_session_resume_inI1outR1_continue_tail(struct state *st,
 
 		close_output_pbs(&pb);
 	}
-
+    
+    if (st->st_send_ticket_nack) {
+        if (!emit_v2N(v2N_TICKET_NACK, &rbody))
+            return STF_INTERNAL_ERROR;
+    }
 
 
     close_output_pbs(&rbody);

@@ -751,7 +751,7 @@ struct state {
 	bool st_seen_ticket;            /* seen TICKET */
 	bool st_seen_ticket_ack;        /* seen TICKET_ACK */
 	chunk_t ticket_stored;          /* Ticket stored at client end */
-	bool st_hibernated;             /* Current state is hibernated */
+	bool st_send_ticket_nack;
 };
 
 /*
