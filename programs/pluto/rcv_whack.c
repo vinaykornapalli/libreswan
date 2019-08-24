@@ -624,6 +624,13 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 			 "Connection with given name not found,try again with valid name");
 		} else {
              // To add state transistion functions
+			struct state *st = state_with_serialno(c->newest_isakmp_sa);
+			if(st!=NULL) {
+                ikev2_session_resume_outI1(st);
+			} else{
+				whack_log(RC_LOG,
+                  "state not found");
+			}
 			
 			 
 		}

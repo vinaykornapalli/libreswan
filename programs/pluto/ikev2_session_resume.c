@@ -82,12 +82,7 @@ chunk_t st_to_ticket(const struct state *st) {
            /* SPIr */
            memcpy(&ts.SPIr, st->st_ike_spis.responder.bytes, IKE_SA_SPI_SIZE);
 
-           /*SKEYSEED OLD
-           currently some issue with it
-           memcpy(ts.st_skey_d_nss, st->st_skey_d_nss, sizeof(PK11SymKey));
-           */
-
-           /* All the IKE negotiations */
+           ts.sk_d_old = chunk_from_symkey("sk_d_old" , st->st_skey_d_nss);
 
            memcpy(&ts.st_oakley, &(st->st_oakley), sizeof(struct trans_attrs));
 
@@ -96,17 +91,24 @@ chunk_t st_to_ticket(const struct state *st) {
 
       
 
-       memcpy(&ticket_payl->ticket.tk_by_value , &tk , sizeof(struct ticket_by_value));
+       memcpy(&ticket_payl->tk_by_value , &tk , sizeof(struct ticket_by_value));
        
     
     chunk_t ticket_payl_chunk = chunk(ticket_payl , sizeof(struct ticket_payload));
     return ticket_payl_chunk;
 }
-/*
-struct state *ticket_to_st(const chunk_t *ticket) {
 
+
+
+bool ticket_to_st(const struct state *st , const chunk_t ticket) {
+  /* Extraction of ticket */
+  struct ike_ticket_state  tk;
+  memcpy(&tk , ticket.ptr , ticket.len);
+  st->st_oakley = tk.st_oakley;
+  st->st_skey_d_nss = symkey_from_chunk("sk_d_old" , tk.sk_d_old);
+  return TRUE;
 }
-*/
+
 
 
 static struct msg_digest *fake_md(struct state *st)
@@ -124,11 +126,50 @@ static struct msg_digest *fake_md(struct state *st)
 
 
 
-stf_status ikev2_session_resume_outI1(struct state *st ,struct msg_digest *md) {
+/*
+ *
+ ***************************************************************
+ *                       SESSION_RESUME_PARENT_OUTI1       *****
+ ***************************************************************
+ *  
+ *
+ *
+ */
 
-    /* Suspended state should be transitioned back 
-     *STATE_PARENT_HIBERNATED -> STATE_PARENT_RESUME_I1
-     */
+static void ikev2_session_resume_outI1_continue(struct state *st, struct msg_digest **mdp,
+				 struct pluto_crypto_req *r);
+
+static stf_status ikev2_session_resume_outI1_common(struct state *st);
+
+void ikev2_session_resume_outI1(struct state *st) {
+
+    push_cur_state(st);
+    passert(st->st_ike_version == IKEv2);
+	passert(st->st_state->kind == STATE_PARENT_HIBERNATED);
+	st->st_original_role = ORIGINAL_INITIATOR;
+	passert(st->st_sa_role == SA_INITIATOR);
+   
+    request_nonce("Session Resume Initiator Nonce Ni" , st ,ikev2_session_resume_outI1_continue);
+    
+}
+
+void ikev2_session_resume_outI1_continue(struct state *st, struct msg_digest **mdp,
+				 struct pluto_crypto_req *r)
+{
+	DBG(DBG_CONTROL,
+		DBG_log("ikev2_session_resume_outI1_continue for #%lu",
+			st->st_serialno));
+	unpack_nonce(&st->st_ni, r);
+	stf_status e = ikev2_session_resume_outI1_common(st);
+	/* needed by complete state transition */
+	if (*mdp == NULL) {
+		*mdp = fake_md(st);
+	}
+	complete_v2_state_transition((*mdp)->st, mdp, e);
+}
+
+stf_status ikev2_session_resume_outI1_common(struct state *st) {
+
 
     /* set up reply for first session exchange message */
     init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
@@ -149,9 +190,8 @@ stf_status ikev2_session_resume_outI1(struct state *st ,struct msg_digest *md) {
             .isag_np = ISAKMP_NEXT_v2N,
             .isag_critical = build_ikev2_critical(false),
         };
-
         if (!out_struct(&in, &ikev2_nonce_desc, &rbody, &pb) ||
-            !out_chunk(st->st_ni, &pb, "IKEv2 nonce"))
+            !out_chunk(st->st_ni, &pb, "IKEv2 Session Resume nonce"))
             return STF_INTERNAL_ERROR;
 
         close_output_pbs(&pb);
@@ -163,27 +203,180 @@ stf_status ikev2_session_resume_outI1(struct state *st ,struct msg_digest *md) {
 
     close_output_pbs(&reply_stream);
     record_outbound_ike_msg(st, &reply_stream, "Request packet for Session Resumption");
+    reset_cur_state();
+    return STF_OK;
+}
+
+/*
+ *
+ ***************************************************************
+ *                       SESSION_RESUME_PARENT_INI1        *****
+ ***************************************************************
+ *  -
+ *
+ *
+ */
+
+static crypto_req_cont_func ikev2_session_resume_inI1outR1_continue;	/* forward decl and type assertion */
+static crypto_transition_fn ikev2_session_resume_inI1outR1_continue_tail;	/* forward decl and type assertion */
+
+stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md) {
+
+    /* Accepting the ticket and generating state out of it */
+    for (struct payload_digest *ntfy = md->chain[ISAKMP_NEXT_v2N]; ntfy != NULL; ntfy = ntfy->next) {
+		switch(ntfy->payload.v2n.isan_type) {
+              case v2N_TICKET_OPAQUE:
+                 chunk_t tk_payl;
+                 clonetochunk(tk_payl,ntfy->pbs.cur, pbs_left(&ntfy->pbs),"Ticket Opaque stored");
+                 /*If we are unable to form a state from ticket we should send No Acknowledgement*/
+                 if(!ticket_to_st(st , tk_payl) && !emit_v2N(v2N_TICKET_NACK, &rbody))
+                    return STF_INTERNAL_ERROR;
+                 freeanychunk(tk_payl);
+                 break;
+              default:
+                	DBG(DBG_CONTROLMORE,
+			    DBG_log("Received unauthenticated %s notify - ignored",
+				    enum_name(&ikev2_notify_names,
+					      ntfy->payload.v2n.isan_type)));
+        }
+    }
+
+    request_nonce("Session Resume Responder Nonce Nr" , st ,ikev2_session_resume_inI1outR1_continue);
+    return STF_OK;
+
+}
+
+static void ikev2_session_resume_inI1outR1_continue(struct state *st,
+					    struct msg_digest **mdp,
+					    struct pluto_crypto_req *r)
+{
+	DBG(DBG_CONTROL,
+		DBG_log("ikev2_session_resume_inI1outR1_continue for #%lu: calculated nonce, sending R1",
+			st->st_serialno));
+
+	passert(*mdp != NULL);
+	stf_status e = ikev2_session_inI1outR1_continue_tail(st, *mdp, r);
+	/* replace (*mdp)->st with st ... */
+	complete_v2_state_transition((*mdp)->st, mdp, e);
+}
+
+static stf_status ikev2_session_resume_inI1outR1_continue_tail(struct state *st,
+						       struct msg_digest *md,
+						       struct pluto_crypto_req *r)
+{
+      /* make sure HDR is at start of a clean buffer */
+	init_out_pbs(&reply_stream, reply_buffer, sizeof(reply_buffer),
+		     "reply packet");
+
+	/* HDR out */
+	pb_stream rbody = open_v2_message(&reply_stream, ike_sa(st),
+					  md /* response */,
+					  ISAKMP_v2_IKE_SESSION_RESUME);
+	if (!pbs_ok(&rbody)) {
+		return STF_INTERNAL_ERROR;
+	}
+
+   	/* Ni in */
+	RETURN_STF_FAILURE(accept_v2_nonce(md, &st->st_ni, "Ni"));
+
+  
+    /* send NONCE */
+	unpack_nonce(&st->st_nr, r);
+	{
+		pb_stream pb;
+		struct ikev2_generic in = {
+			.isag_np = ISAKMP_NEXT_v2N,
+			.isag_critical = build_ikev2_critical(false),
+		};
+
+		if (!out_struct(&in, &ikev2_nonce_desc, &rbody, &pb) ||
+		    !out_chunk(st->st_nr, &pb, "IKEv2 Session Resume nonce"))
+			return STF_INTERNAL_ERROR;
+
+		close_output_pbs(&pb);
+	}
+
+
+
+    close_output_pbs(&rbody);
+	close_output_pbs(&reply_stream);
+
+	record_outbound_ike_msg(st, &reply_stream,
+		"reply packet for ikev2_session_resume_inI1outR1");
+
+    return STF_OK;
+
+}
+/*
+ *
+ ***************************************************************
+ *                       SESSION_RESUME_PARENT_inR1        *****
+ ***************************************************************
+ *  
+ *
+ *
+ */
+static crypto_req_cont_func ikev2_session_resume_inR1outI2_continue;	/* forward decl and type assertion */
+static crypto_transition_fn ikev2_session_resume_inR1outI2_tail;	/* forward decl and type assertion */
+
+stf_status ikev2_session_resume_inR1outI2(struct state *st, struct msg_digest *md) {
+
+
+    /* First see if there is any no acknowledgement received */
+    for (struct payload_digest *ntfy = md->chain[ISAKMP_NEXT_v2N]; ntfy != NULL; ntfy = ntfy->next) {
+        if (ntfy->payload.v2n.isan_spisize != 0) {
+            libreswan_log("Notify payload for IKE must have zero length SPI - message dropped");
+            return STF_IGNORE;
+        }
+
+        if (ntfy->payload.v2n.isan_type >= v2N_STATUS_FLOOR) {
+            pstat(ikev2_recv_notifies_s, ntfy->payload.v2n.isan_type);
+        }
+        else {
+            pstat(ikev2_recv_notifies_e, ntfy->payload.v2n.isan_type);
+        }
+
+        switch (ntfy->payload.v2n.isan_type) {
+            case v2N_TICKET_NACK:
+                /* we should continue with normal ikev2 init exchange */
+                return STF_FAIL;
+            default:
+                DBG(DBG_CONTROLMORE,
+			    DBG_log("Received unauthenticated %s notify - ignored",
+				    enum_name(&ikev2_notify_names,
+					      ntfy->payload.v2n.isan_type)));
+              
+        }
+    }
+
+    /* Ni in */
+	RETURN_STF_FAILURE(accept_v2_nonce(md, &st->st_nr, "Ni"));
+    
+    /*to-do: Right time to start generating new keys from old keys */
 
     return STF_OK;
 }
 
-// stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md) {
 
-    
-//     for (struct payload_digest *ntfy = md->chain[ISAKMP_NEXT_v2N]; ntfy != NULL; ntfy = ntfy->next) {
-// 		switch(ntfy->payload.v2n.isan_type) {
-//               case v2N_TICKET_OPAQUE:
-//                  chunk_t tk_payl;
-//                  clonetochunk(tk_payl,ntfy->pbs.cur, pbs_left(&ntfy->pbs),"Ticket Opaque stored");
-//                  struct state *st = ticket_to_st(&tk_payl);
-//                  freeanychunk(tk_payl);
-//                  break;
-//         }
-//     }
-// }
+static void ikev2_parent_inR1outI2_continue(struct state *st,
+					    struct msg_digest **mdp,
+					    struct pluto_crypto_req *r)
+{
+	DBG(DBG_CONTROL,
+		DBG_log("ikev2_session_resume_inR1outI2_continue for #%lu: sending I2",
+			st->st_serialno));
 
+	passert(*mdp != NULL);
+	stf_status e = ikev2_session_resume_inR1outI2_tail(st, *mdp, r);
+	/* replace (*mdp)->st with st ... */
+	complete_v2_state_transition((*mdp)->st, mdp, e);
+}
 
+static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_digest *md,
+					      struct pluto_crypto_req *r)
+{
 
+}
 
 /* Functions related to hibernate/resume connection */
 void hibernate_connection(struct connection *c) {
@@ -206,23 +399,6 @@ void hibernate_connection(struct connection *c) {
 }
 
 
-void resume_connection(struct connection *c) {
-    struct state *st = state_with_serialno(c->newest_isakmp_sa);
-    
-    if (st != NULL) {
-       struct msg_digest *md;
-       md = fake_md(st);
-       stf_status e = ikev2_session_resume_outI1(st , md);
-       if(e > STF_OK) {
-             whack_log(RC_LOG,
-                  "Session Resumption not Successful");
-       }
-    }
-    else {
-        whack_log(RC_LOG,
-                  "state not found");
-    }
-}
 
 
 

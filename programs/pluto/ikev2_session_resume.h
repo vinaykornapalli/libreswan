@@ -39,7 +39,7 @@ struct ike_ticket_state {
     uint8_t SPIr[IKE_SA_SPI_SIZE];
 
     /* Reference to sk_d_old */
-    PK11SymKey *st_skey_d_nss;
+    chunk_t sk_d_old;
 
     /* All the chosen Algorithm Description */
     struct trans_attrs st_oakley;
@@ -68,46 +68,32 @@ struct ticket_by_value {
 
 };
 
-/* Ticket by reference structures */
 
-struct ikev2_state_ref {
-
-};
-
-struct ticket_by_reference {
-   uint8_t format_version;
-
-};
 
 /* Ticket Payload */
 struct ticket_payload {
-    /*
+
+    struct ticket_by_value tk_by_value; 
+     /*
       The reason for lifetime to be present outside ticket is 
       -The client will clear expired tickets.
     */
     deltatime_t lifetime;
-    
-    union ticket {
-      struct ticket_by_value tk_by_value; 
-      struct ticket_by_reference tk_by_ref;
-    } ticket;
 };
 
 
 /* Functions related to ticket */
 chunk_t st_to_ticket(const struct state *st);
-struct state *ticket_to_st(const chunk_t *ticket);
+bool ticket_to_st(const struct state *st , const chunk_t ticket);
+
 
 /* Functions related to Session Resume Exchange */
-
-
-/* ikev2 Session Resumption initiator function */
-stf_status ikev2_session_resume_outI1(struct state *st, struct msg_digest *md);
+void ikev2_session_resume_outI1(struct state *st);
 stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md);
+stf_status ikev2_session_resume_inR1outI2(struct state *st, struct msg_digest *md);
 
 
 /* Functions related to hibernate/resume connection */
 void hibernate_connection(struct connection *c);
-void resume_connection(struct connection *c);
 
 #endif
