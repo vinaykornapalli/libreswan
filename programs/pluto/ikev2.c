@@ -638,7 +638,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
 	  .timeout_event = EVENT_SO_DISCARD, },
 
-	{ .story      = "Initiator: process IKE_SA_INIT reply, initiate IKE_AUTH",
+	{ .story      = "Initiator: process inR1 , initiate IKE_AUTH",
 	  .state      = STATE_PARENT_RESUME_I1,
 	  .next_state = STATE_PARENT_RESUME_I2,
 	  .flags = SMF2_MSG_R_SET,
