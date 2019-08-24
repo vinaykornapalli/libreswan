@@ -255,7 +255,7 @@ static void ikev2_session_resume_inI1outR1_continue(struct state *st,
 			st->st_serialno));
 
 	passert(*mdp != NULL);
-	stf_status e = ikev2_session_inI1outR1_continue_tail(st, *mdp, r);
+	stf_status e = ikev2_session_resume_inI1outR1_continue_tail(st, *mdp, r);
 	/* replace (*mdp)->st with st ... */
 	complete_v2_state_transition((*mdp)->st, mdp, e);
 }
