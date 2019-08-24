@@ -152,11 +152,9 @@ bool send_chunks(const char *where, bool just_a_keepalive,
 
 	check_outgoing_msg_errqueue(interface, "sending a packet");
 
-	wlen = sendto(interface->fd,
-		      ptr,
-		      len, 0,
-		      sockaddrof(&remote_endpoint),
-		      sockaddrlenof(&remote_endpoint));
+	ip_sockaddr remote_sa;
+	size_t remote_sa_size = endpoint_to_sockaddr(&remote_endpoint, &remote_sa);
+	wlen = sendto(interface->fd, ptr, len, 0, &remote_sa.sa, remote_sa_size);
 
 	if (wlen != (ssize_t)len) {
 		if (!just_a_keepalive) {
@@ -184,11 +182,9 @@ bool send_chunks(const char *where, bool just_a_keepalive,
 			str_endpoint(&interface->local_endpoint, &ib),
 			str_endpoint(&remote_endpoint, &b));
 
-		wlen = sendto(interface->fd,
-			      ptr,
-			      len, 0,
-			      sockaddrof(&remote_endpoint),
-			      sockaddrlenof(&remote_endpoint));
+		ip_sockaddr remote_sa;
+		size_t remote_sa_size = endpoint_to_sockaddr(&remote_endpoint, &remote_sa);
+		wlen = sendto(interface->fd, ptr, len, 0, &remote_sa.sa, remote_sa_size);
 		if (wlen != (ssize_t)len) {
 			if (!just_a_keepalive) {
 				LOG_ERRNO(errno,
@@ -217,8 +213,7 @@ bool send_chunks_using_state(struct state *st, const char *where,
 {
 	return send_chunks(where, FALSE,
 			   st->st_serialno, st->st_interface,
-			   hsetportof(st->st_remoteport, st->st_remoteaddr),
-			   a, b);
+			   st->st_remote_endpoint, a, b);
 }
 
 bool send_chunk_using_state(struct state *st, const char *where, chunk_t packet)
@@ -252,7 +247,7 @@ bool send_keepalive(struct state *st, const char *where)
 
 	return send_chunks(where, TRUE,
 			   st->st_serialno, st->st_interface,
-			   hsetportof(st->st_remoteport, st->st_remoteaddr),
+			   st->st_remote_endpoint,
 			   THING_AS_CHUNK(ka_payload),
 			   EMPTY_CHUNK);
 }

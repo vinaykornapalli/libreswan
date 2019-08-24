@@ -55,6 +55,7 @@
 #include "defs.h"
 #include "whack.h"
 #include "ip_address.h"
+#include "ip_info.h"
 
 #include "ipsecconf/confread.h" /* for DEFAULT_UPDOWN */
 #include <net/if.h> /* for IFNAMSIZ */
@@ -856,11 +857,11 @@ static void check_end(struct whack_end *this, struct whack_end *that,
 		diag("address family of host inconsistent");
 
 	if (this->has_client) {
-		if (taf != subnettypeof(&this->client))
+		if (aftoinfo(taf) != subnet_type(&this->client))
 			diag("address family of client subnet inconsistent");
 	} else {
 		/* fill in anyaddr-anyaddr as (missing) client subnet */
-		ip_address cn = address_any(caf);
+		ip_address cn = address_any(aftoinfo(caf));
 		diagq(rangetosubnet(&cn, &cn, &this->client), NULL);
 	}
 
@@ -1445,7 +1446,7 @@ int main(int argc, char **argv)
 			lset_t new_policy = LEMPTY;
 
 			af_used_by = long_opts[long_index].name;
-			msg.right.host_addr = address_any(msg.addr_family);
+			msg.right.host_addr = address_any(aftoinfo(msg.addr_family));
 			if (streq(optarg, "%any")) {
 			} else if (streq(optarg, "%opportunistic")) {
 				/* always use tunnel mode; mark as opportunistic */
@@ -1494,7 +1495,7 @@ int main(int argc, char **argv)
 					 * or IPV6 equivalent
 					 */
 					tunnel_af_used_by = optarg;
-					ip_address any = address_any(msg.tunnel_addr_family);
+					ip_address any = address_any(aftoinfo(msg.tunnel_addr_family));
 					diagq(initsubnet(&any, 0, '0',
 							 &msg.right.client),
 					      optarg);
@@ -1571,7 +1572,7 @@ int main(int argc, char **argv)
 		case END_NEXTHOP:	/* --nexthop <ip-address> */
 			af_used_by = long_opts[long_index].name;
 			if (streq(optarg, "%direct")) {
-				msg.right.host_nexthop = address_any(msg.addr_family);
+				msg.right.host_nexthop = address_any(aftoinfo(msg.addr_family));
 			} else {
 				diagq(ttoaddr(optarg, 0, msg.addr_family,
 					      &msg.right.host_nexthop),
@@ -2365,8 +2366,8 @@ int main(int argc, char **argv)
 		check_end(&msg.right, &msg.left,
 			  msg.addr_family, msg.tunnel_addr_family);
 
-		if (subnettypeof(&msg.left.client) !=
-		    subnettypeof(&msg.right.client))
+		if (subnet_type(&msg.left.client) !=
+		    subnet_type(&msg.right.client))
 			diag("endpoints clash: one is IPv4 and the other is IPv6");
 
 		if (msg.policy & POLICY_AUTH_NEVER) {
@@ -2438,8 +2439,8 @@ int main(int argc, char **argv)
 
 	/* do the logic for --redirect command */
 	if (msg.active_redirect) {
-		bool redirect_peer_spec = !isanyaddr(&msg.active_redirect_peer);
-		bool redirect_gw_spec = !isanyaddr(&msg.active_redirect_gw);
+		bool redirect_peer_spec = address_is_specified(&msg.active_redirect_peer);
+		bool redirect_gw_spec = address_is_specified(&msg.active_redirect_gw);
 		msg.active_redirect = FALSE;	/* if we pass all the 'tests' we set it back to TRUE */
 		if (msg.name != NULL)
 			if (redirect_peer_spec)

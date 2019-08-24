@@ -22,6 +22,7 @@
 #include "chunk.h"
 #include "err.h"
 #include "ip_address.h"
+#include "ip_sockaddr.h"
 
 struct lswlog;
 
@@ -41,15 +42,9 @@ typedef ip_address ip_endpoint;
 #endif
 
 ip_endpoint endpoint(const ip_address *address, int port);
-err_t sockaddr_as_endpoint(const struct sockaddr *sa, socklen_t sa_len, ip_endpoint *endpoint);
-
-int endpoint_port(const ip_endpoint *endpoint);
-ip_endpoint set_endpoint_port(const ip_endpoint *endpoint, int port);
 
 /* forces port to zero */
 ip_address endpoint_address(const ip_endpoint *endpoint);
-int endpoint_type(const ip_endpoint *endpoint);
-const struct ip_info *endpoint_info(const ip_endpoint *endpoint);
 
 /*
  * formatting
@@ -81,8 +76,8 @@ bool endpoint_eq(const ip_endpoint l, ip_endpoint r);
  * unspecified (for instance IN6_IS_ADDR_UNSPECIFIED()) leaving the
  * term "unspecified" underspecified.
  *
- * Consequently, "invalid" refers to AF_UNSPEC, "any" refers to
- * AF_{INET,INET6)=0, and "specified" refers to other stuff.
+ * Consequently to identify an AF_UNSPEC (i.e., uninitialized)
+ * address, see if *_type() returns NULL.
  */
 
 /* AF_UNSPEC(==0); ADDR = 0; PORT = 0, */
@@ -91,7 +86,41 @@ extern ip_endpoint endpoint_invalid;
 #else
 #define endpoint_invalid address_invalid
 #endif
-bool endpoint_is_invalid(const ip_endpoint *address);
-bool endpoint_is_valid(const ip_endpoint *address);
+
+/* mutually exclusive */
+#if 0
+#define endpoint_is_invalid(A) (endpoint_type(A) == NULL)
+bool endpoint_is_any(const ip_endpoint *endpoint);
+#endif
+bool endpoint_is_specified(const ip_endpoint *endpoint);
+
+/* returns NULL when address_invalid */
+const struct ip_info *endpoint_type(const ip_endpoint *endpoint);
+
+/* host byte order */
+int endpoint_port(const ip_endpoint *endpoint);
+ip_endpoint set_endpoint_port(const ip_endpoint *endpoint, int port);
+
+/*
+ * conversions
+ */
+
+/* convert the endpoint to a sockaddr; return true size */
+size_t endpoint_to_sockaddr(const ip_endpoint *endpoint, ip_sockaddr *sa);
+/* convert sockaddr to an endpoint */
+err_t sockaddr_to_endpoint(const ip_sockaddr *sa, socklen_t sa_len, ip_endpoint *endpoint);
+
+/*
+ * Old style.
+ */
+
+/* N=network H=host; need ip_port type? */
+#define nportof(ENDPOINT) htons(endpoint_port(ENDPOINT))
+#define hportof(ENDPOINT) endpoint_port(ENDPOINT)
+ip_endpoint nsetportof(int port, ip_endpoint dst);
+ip_endpoint hsetportof(int port, ip_endpoint dst);
+/* XXX: compatibility */
+#define portof(SRC) nportof((SRC))
+#define setportof(PORT, DST) { *(DST) = nsetportof(PORT, *(DST)); }
 
 #endif

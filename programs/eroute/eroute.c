@@ -50,6 +50,7 @@
 #include "ip_address.h"
 #include "ip_said.h"
 #include "ip_subnet.h"
+#include "ip_info.h"
 
 const char *progname;
 static const char me[] = "ipsec eroute";
@@ -136,16 +137,11 @@ int main(int argc, char **argv)
 {
 	unsigned long u;	/* for ttoulb */
 	int c;
-	const char *error_s;
 
 	int error = 0;
 
 	struct sadb_ext *extensions[K_SADB_EXT_MAX + 1];
 	struct sadb_msg *pfkey_msg;
-	ip_address pfkey_address_s_ska;
-	/*struct sockaddr_in pfkey_address_d_ska;*/
-	ip_address pfkey_address_sflow_ska;
-	ip_address pfkey_address_dflow_ska;
 
 	int transport_proto = 0;
 	int src_port = 0;
@@ -160,9 +156,6 @@ int main(int argc, char **argv)
 
 	progname = argv[0];
 
-	zero(&pfkey_address_s_ska);
-	zero(&pfkey_address_sflow_ska);
-	zero(&pfkey_address_dflow_ska);
 	zero(&said);
 	zero(&s_subnet);
 	zero(&d_subnet);
@@ -247,13 +240,17 @@ int main(int argc, char **argv)
 					progname, optarg, edst_opt);
 				exit(1);
 			}
-			error_s = ttoaddr(optarg, 0, said_af, &said.dst);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --edst argument:%s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttoaddr(optarg, 0, said_af, &said.dst);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --edst argument:%s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			edst_opt = optarg;
 			break;
 		case 'h':
@@ -274,15 +271,18 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 
-			error_s = ttoulb(optarg, 0, 0, 0xFFFFFFFFul, &u);
-			if (error_s == NULL && u < 0x100)
-				error_s = "values less than 0x100 are reserved";
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Invalid SPI parameter \"%s\": %s\n",
-					progname, optarg, error_s);
-				exit(1);
+			{
+				err_t e = ttoulb(optarg, 0, 0, 0xFFFFFFFFul, &u);
+				if (e == NULL && u < 0x100)
+					e = "values less than 0x100 are reserved";
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Invalid SPI parameter \"%s\": %s\n",
+						progname, optarg, e);
+					exit(1);
+				}
 			}
+
 			said.spi = htonl(u);
 			spi_opt = optarg;
 			break;
@@ -347,13 +347,18 @@ int main(int argc, char **argv)
 					progname, optarg, said_af_opt);
 				exit(1);
 			}
-			error_s = ttosa(optarg, 0, &said);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --sa argument:%s\n",
-					progname, error_s, optarg);
-				exit(1);
-			} else if (ntohl(said.spi) < 0x100) {
+
+			{
+				err_t e = ttosa(optarg, 0, &said);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --sa argument:%s\n",
+						progname, e, optarg);
+					exit(1);
+				}
+			}
+
+			if (ntohl(said.spi) < 0x100) {
 				fprintf(stderr,
 					"%s: Illegal reserved spi: %s => 0x%x Must be larger than or equal to 0x100.\n",
 					progname, optarg, said.spi);
@@ -374,13 +379,17 @@ int main(int argc, char **argv)
 					progname, optarg, dst_opt);
 				exit(1);
 			}
-			error_s = ttosubnet(optarg, 0, eroute_af, &d_subnet);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --dst argument: %s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttosubnet(optarg, 0, eroute_af, &d_subnet);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --dst argument: %s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			dst_opt = optarg;
 			break;
 		case 'S':
@@ -390,13 +399,17 @@ int main(int argc, char **argv)
 					progname, optarg, src_opt);
 				exit(1);
 			}
-			error_s = ttosubnet(optarg, 0, eroute_af, &s_subnet);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --src argument: %s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttosubnet(optarg, 0, eroute_af, &s_subnet);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --src argument: %s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			src_opt = optarg;
 			break;
 		case 'P':
@@ -511,15 +524,15 @@ int main(int argc, char **argv)
 			action_type);
 
 	if (transport_proto_opt != 0) {
-		struct protoent * proto = getprotobyname(transport_proto_opt);
+		struct protoent *proto = getprotobyname(transport_proto_opt);
 		if (proto != 0) {
 			transport_proto = proto->p_proto;
 		} else {
-			error_s = ttoulb(optarg, 0, 0, 255, &u);
-			if (error_s != NULL) {
+			err_t e = ttoulb(optarg, 0, 0, 255, &u);
+			if (e != NULL) {
 				fprintf(stderr,
 					"%s: Invalid --transport-proto parameter \"%s\": %s\n",
-					progname, transport_proto_opt, error_s);
+					progname, transport_proto_opt, e);
 				exit(1);
 			}
 
@@ -541,15 +554,15 @@ int main(int argc, char **argv)
 	}
 
 	if (src_port_opt != NULL) {
-		struct servent * ent = getservbyname(src_port_opt, 0);
+		struct servent *ent = getservbyname(src_port_opt, 0);
 		if (ent != 0) {
 			src_port = ntohs(ent->s_port);
 		} else {
-			err_t error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
-			if (error_s != NULL) {
+			err_t e = ttoulb(optarg, 0, 0, 0xFFFF, &u);
+			if (e != NULL) {
 				fprintf(stderr,
 					"%s: Invalid --src-port parameter \"%s\": %s\n",
-					progname, src_port_opt, error_s);
+					progname, src_port_opt, e);
 				exit(1);
 			}
 			src_port = u;
@@ -557,15 +570,15 @@ int main(int argc, char **argv)
 	}
 
 	if (dst_port_opt != NULL) {
-		struct servent * ent = getservbyname(dst_port_opt, 0);
+		struct servent *ent = getservbyname(dst_port_opt, 0);
 		if (ent != 0) {
 			dst_port = ntohs(ent->s_port);
 		} else {
-			err_t error_s = ttoulb(optarg, 0, 0, 0xFFFF, &u);
-			if (error_s != NULL) {
+			err_t e = ttoulb(optarg, 0, 0, 0xFFFF, &u);
+			if (e != NULL) {
 				fprintf(stderr,
 					"%s: Invalid --dst-port parameter \"%s\": %s\n",
-					progname, src_port_opt, error_s);
+					progname, src_port_opt, e);
 				exit(1);
 			}
 			dst_port = u;
@@ -701,19 +714,22 @@ sa_build:
 	case EMT_REPLACEROUTE:
 	case EMT_INEROUTE:
 	case EMT_INREPLACEROUTE:
-		pfkey_address_s_ska = address_any(said_af);
+	{
+		ip_address s_any = address_any(aftoinfo(said_af));
+		ip_endpoint s_end = endpoint(&s_any, 0);
+		ip_sockaddr s_sa;
+		passert(endpoint_to_sockaddr(&s_end, &s_sa) > 0);
 		error = pfkey_address_build(
 				&extensions[SADB_EXT_ADDRESS_SRC],
 				SADB_EXT_ADDRESS_SRC,
 				0,
 				0,
-				sockaddrof(&pfkey_address_s_ska));
+				&s_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_s extension (%s), error=%d.\n",
-				progname, ipstr(&pfkey_address_s_ska, &b),
+				progname, str_endpoint(&s_end, &b),
 				error);
 			pfkey_extensions_free(extensions);
 			exit(1);
@@ -724,18 +740,18 @@ sa_build:
 				progname);
 		}
 
-		error = pfkey_address_build(
-				&extensions[SADB_EXT_ADDRESS_DST],
-				SADB_EXT_ADDRESS_DST,
-				0,
-				0,
-				sockaddrof(&said.dst));
+		ip_sockaddr said_dst_sa;
+		passert(endpoint_to_sockaddr(&said.dst, &said_dst_sa) > 0);
+		error = pfkey_address_build(&extensions[SADB_EXT_ADDRESS_DST],
+					    SADB_EXT_ADDRESS_DST,
+					    0,
+					    0,
+					    &said_dst_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_d extension (%s), error=%d.\n",
-				progname, ipstr(&said.dst, &b), error);
+				progname, str_endpoint(&said.dst, &b), error);
 			pfkey_extensions_free(extensions);
 			exit(1);
 		}
@@ -744,6 +760,7 @@ sa_build:
 				"%s: DEBUG: pfkey_address_build successful for dst.\n",
 				progname);
 		}
+	}
 	default:
 		break;
 	}
@@ -755,24 +772,24 @@ sa_build:
 	case EMT_INREPLACEROUTE:
 	case EMT_DELEROUTE:
 	{
-		if (subnet_info(&s_subnet) == NULL) {
+		if (subnet_type(&s_subnet) == NULL) {
 			fprintf(stderr, "%s: source subnet not specified\n", progname);
 			exit(1);
 		}
-		ip_endpoint s_flow = subnet_endpoint(&s_subnet);
-		pfkey_address_sflow_ska = set_endpoint_port(&s_flow, src_port); /* src flow */
-		error = pfkey_address_build(
-				&extensions[SADB_X_EXT_ADDRESS_SRC_FLOW],
-				SADB_X_EXT_ADDRESS_SRC_FLOW,
-				0,
-				0,
-				sockaddrof(&pfkey_address_sflow_ska));
+		ip_endpoint sflow = subnet_endpoint(&s_subnet);
+		ip_endpoint sflow_end = set_endpoint_port(&sflow, src_port); /* src flow */
+		ip_sockaddr sflow_sa;
+		passert(endpoint_to_sockaddr(&sflow_end, &sflow_sa) > 0);
+		error = pfkey_address_build(&extensions[SADB_X_EXT_ADDRESS_SRC_FLOW],
+					    SADB_X_EXT_ADDRESS_SRC_FLOW,
+					    0,
+					    0,
+					    &sflow_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_sflow extension (%s), error=%d.\n",
-				progname, ipstr(&pfkey_address_sflow_ska, &b), error);
+				progname, str_endpoint(&sflow_end, &b), error);
 			pfkey_extensions_free(extensions);
 			exit(1);
 		}
@@ -782,24 +799,24 @@ sa_build:
 				progname);
 		}
 
-		if (subnet_info(&d_subnet) == NULL) {
+		if (subnet_type(&d_subnet) == NULL) {
 			fprintf(stderr, "%s: destination subnet not specified.\n", progname);
 			exit(1);
 		}
-		ip_endpoint d_flow = subnet_endpoint(&d_subnet);
-		pfkey_address_dflow_ska = set_endpoint_port(&d_flow, dst_port); /* dst flow */
-		error = pfkey_address_build(
-				&extensions[SADB_X_EXT_ADDRESS_DST_FLOW],
-				SADB_X_EXT_ADDRESS_DST_FLOW,
-				0,
-				0,
-				sockaddrof(&pfkey_address_dflow_ska));
+		ip_endpoint dflow = subnet_endpoint(&d_subnet);
+		ip_endpoint dflow_end = set_endpoint_port(&dflow, dst_port); /* dst flow */
+		ip_sockaddr dflow_sa;
+		passert(endpoint_to_sockaddr(&dflow_end, &dflow_sa) > 0);
+		error = pfkey_address_build(&extensions[SADB_X_EXT_ADDRESS_DST_FLOW],
+					    SADB_X_EXT_ADDRESS_DST_FLOW,
+					    0,
+					    0,
+					    &dflow_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_dflow extension (%s), error=%d.\n",
-				progname, ipstr(&pfkey_address_dflow_ska, &b), error);
+				progname, str_endpoint(&dflow_end, &b), error);
 			pfkey_extensions_free(extensions);
 			exit(1);
 		}
@@ -809,20 +826,20 @@ sa_build:
 				progname);
 		}
 
-		ip_address s_mask = subnet_mask(&s_subnet); /* src mask */
-		ip_endpoint pfkey_address_smask_ska = endpoint(&s_mask, src_port ? ~0 : 0);
-		error = pfkey_address_build(
-				&extensions[SADB_X_EXT_ADDRESS_SRC_MASK],
-				SADB_X_EXT_ADDRESS_SRC_MASK,
-				0,
-				0,
-				sockaddrof(&pfkey_address_smask_ska));
+		ip_address smask = subnet_mask(&s_subnet); /* src mask */
+		ip_endpoint smask_end = endpoint(&smask, src_port ? ~0 : 0);
+		ip_sockaddr smask_sa;
+		passert(endpoint_to_sockaddr(&smask_end, &smask_sa) > 0);
+		error = pfkey_address_build(&extensions[SADB_X_EXT_ADDRESS_SRC_MASK],
+					    SADB_X_EXT_ADDRESS_SRC_MASK,
+					    0,
+					    0,
+					    &smask_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_smask extension (%s), error=%d.\n",
-				progname, ipstr(&pfkey_address_smask_ska, &b), error);
+				progname, str_endpoint(&smask_end, &b), error);
 			pfkey_extensions_free(extensions);
 			exit(1);
 		}
@@ -832,20 +849,20 @@ sa_build:
 				progname);
 		}
 
-		ip_address d_mask = subnet_mask(&d_subnet); /* dst mask */
-		ip_endpoint pfkey_address_dmask_ska = endpoint(&d_mask, dst_port ? ~0 : 0);
-		error = pfkey_address_build(
-				&extensions[SADB_X_EXT_ADDRESS_DST_MASK],
-					 SADB_X_EXT_ADDRESS_DST_MASK,
-					 0,
-					 0,
-					 sockaddrof(&pfkey_address_dmask_ska));
+		ip_address dmask = subnet_mask(&d_subnet); /* dst mask */
+		ip_endpoint dmask_end = endpoint(&dmask, dst_port ? ~0 : 0);
+		ip_sockaddr dmask_sa;
+		passert(endpoint_to_sockaddr(&dmask_end, &dmask_sa) > 0);
+		error = pfkey_address_build(&extensions[SADB_X_EXT_ADDRESS_DST_MASK],
+					    SADB_X_EXT_ADDRESS_DST_MASK,
+					    0,
+					    0,
+					    &dmask_sa.sa);
 		if (error) {
-			ipstr_buf b;
-
+			endpoint_buf b;
 			fprintf(stderr,
 				"%s: Trouble building address_dmask extension (%s), error=%d.\n",
-				progname, ipstr(&pfkey_address_dmask_ska, &b),
+				progname, str_endpoint(&dmask_end, &b),
 				error);
 			pfkey_extensions_free(extensions);
 			exit(1);

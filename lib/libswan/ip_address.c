@@ -53,20 +53,7 @@ ip_address address_from_in6_addr(const struct in6_addr *in6)
 	return address;
 }
 
-int address_type(const ip_address *address)
-{
-	int af = address->u.v4.sin_family;
-	switch (af) {
-	case AF_INET:
-	case AF_INET6:
-	case AF_UNSPEC:
-		return af;
-	default:
-		bad_case(af);
-	}
-}
-
-const struct ip_info *address_info(const ip_address *address)
+const struct ip_info *address_type(const ip_address *address)
 {
 	int af = address->u.v4.sin_family;
 	switch (af) {
@@ -78,97 +65,6 @@ const struct ip_info *address_info(const ip_address *address)
 		return NULL;
 	default:
 		bad_case(af);
-	}
-}
-
-/*
- * portof - get the port field of an ip_address in network order.
- *
- * Return -1 if ip_address isn't valid.
- */
-
-int nportof(const ip_address * src)
-{
-	switch (src->u.v4.sin_family) {
-	case AF_INET:
-		return src->u.v4.sin_port;
-
-	case AF_INET6:
-		return src->u.v6.sin6_port;
-
-	default:
-		return -1;
-	}
-}
-
-int hportof(const ip_address *src)
-{
-	int nport = nportof(src);
-	if (nport >= 0) {
-		return ntohs(nport);
-	} else {
-		return -1;
-	}
-}
-
-/*
- * setportof - set the network ordered port field of an ip_address
- */
-
-ip_address nsetportof(int port /* network order */, ip_address dst)
-{
-	switch (dst.u.v4.sin_family) {
-	case AF_INET:
-		dst.u.v4.sin_port = port;
-		break;
-	case AF_INET6:
-		dst.u.v6.sin6_port = port;
-		break;
-	default:
-		/* not asserting, who knows what nonsense a user can generate */
-		libreswan_log("Will not set port on bogus address 0.0.0.0");
-	}
-	return dst;
-}
-
-ip_address hsetportof(int port /* host byte order */, ip_address dst)
-{
-	return nsetportof(htons(port), dst);
-}
-
-/*
- * sockaddrof - get a pointer to the sockaddr hiding inside an ip_address
- */
-struct sockaddr *sockaddrof(const ip_address *src)
-{
-	switch (src->u.v4.sin_family) {
-	case AF_INET:
-		return (struct sockaddr *)&src->u.v4;
-
-	case AF_INET6:
-		return (struct sockaddr *)&src->u.v6;
-
-	default:
-		return NULL;	/* "can't happen" */
-	}
-}
-
-/*
- * sockaddrlenof - get length of the sockaddr hiding inside an ip_address
- *
- * Return 0 on error.
- */
-size_t sockaddrlenof(const ip_address * src)
-{
-	switch (src->u.v4.sin_family) {
-	case AF_INET:
-		return sizeof(src->u.v4);
-
-	case AF_INET6:
-		return sizeof(src->u.v6);
-
-	default:
-		return 0;
 	}
 }
 
@@ -428,30 +324,13 @@ const ip_address address_invalid = {
 	},
 };
 
-bool address_is_invalid(const ip_address *address)
-{
-	int af = address_type(address);
-	return (af == AF_UNSPEC);
-}
-
-bool address_is_valid(const ip_address *address)
-{
-	int af = address_type(address);
-	return (af == AF_INET || af == AF_INET6);
-}
-
 /* these are both zero */
 static const struct in_addr in_addr_any = { INADDR_ANY, };
 static const struct in6_addr in6_addr_any = IN6ADDR_ANY_INIT;
 
-ip_address address_any(int af)
+ip_address address_any(const struct ip_info *info)
 {
-	switch (af) {
-	case AF_INET:
-		return address_from_in_addr(&in_addr_any);
-	case AF_INET6:
-		return address_from_in6_addr(&in6_addr_any);
-	case AF_UNSPEC:
+	if (info == NULL) {
 		/*
 		 * XXX: Loudly reject AF_UNSPEC, but don't crash.
 		 * Callers know the protocol of the "any" (IPv[46]
@@ -464,23 +343,50 @@ ip_address address_any(int af)
 		 */
 		PEXPECT_LOG("AF_UNSPEC unexpected");
 		return address_invalid;
-	default:
-		bad_case(af);
+	} else {
+		switch (info->af) {
+		case AF_INET:
+			return address_from_in_addr(&in_addr_any);
+		case AF_INET6:
+			return address_from_in6_addr(&in6_addr_any);
+		default:
+			bad_case(info->af);
+		}
 	}
 }
 
 bool address_is_any(const ip_address *address)
 {
-	shunk_t addr = address_as_shunk(address);
-	int af = address_type(address);
-	switch (af) {
-	case AF_INET:
-		return shunk_thingeq(addr, in_addr_any);
-	case AF_INET6:
-		return shunk_thingeq(addr, in6_addr_any);
-	case AF_UNSPEC:
+	const struct ip_info *afi = address_type(address);
+	if (afi == NULL) {
 		return false;
-	default:
-		bad_case(af);
+	} else {
+		shunk_t addr = address_as_shunk(address);
+		switch (afi->af) {
+		case AF_INET:
+			return shunk_thingeq(addr, in_addr_any);
+		case AF_INET6:
+			return shunk_thingeq(addr, in6_addr_any);
+		default:
+			bad_case(afi->af);
+		}
+	}
+}
+
+bool address_is_specified(const ip_address *address)
+{
+	const struct ip_info *afi = address_type(address);
+	if (afi == NULL) {
+		return false;
+	} else {
+		shunk_t addr = address_as_shunk(address);
+		switch (afi->af) {
+		case AF_INET:
+			return !shunk_thingeq(addr, in_addr_any);
+		case AF_INET6:
+			return !shunk_thingeq(addr, in6_addr_any);
+		default:
+			bad_case(afi->af);
+		}
 	}
 }

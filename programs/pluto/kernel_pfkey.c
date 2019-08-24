@@ -474,7 +474,7 @@ static void nat_t_new_klips_mapp(struct state *st, void *data)
 	struct new_klips_mapp_nfo *nfo = (struct new_klips_mapp_nfo *)data;
 
 	if (st->st_esp.present &&
-	    sameaddr(&st->st_remoteaddr, &nfo->src) &&
+	    sameaddr(&st->st_remote_endpoint, &nfo->src) &&
 	    st->st_esp.our_spi == nfo->sa->sadb_sa_spi) {
 		ip_endpoint remote_endpoint = endpoint(&nfo->dst, nfo->dport);
 		nat_traversal_new_mapping(ike_sa(st), &remote_endpoint);
@@ -660,19 +660,22 @@ static bool pfkey_msg_start(uint8_t msg_type,
 
 /* pfkey_build + pfkey_address_build */
 static bool pfkeyext_address(uint16_t exttype,
-			     const ip_address *address,
+			     const ip_endpoint *endpoint,
 			     const char *description,
 			     const char *text_said,
 			     struct sadb_ext *extensions[K_SADB_EXT_MAX + 1])
 {
-	/* the following variable is only needed to silence
-	 * a warning caused by the fact that the argument
-	 * to sockaddrof is NOT pointer to const!
+	/*
+	 *
+	 * XXX: pfkey_address_build() extracts both the address and
+	 * the port, hence this code should expect an endpoint.
 	 */
-	ip_address t = *address;
+	ip_sockaddr sa;
+	size_t sa_len = endpoint_to_sockaddr(endpoint, &sa);
+	passert(sa_len > 0);
 
 	return pfkey_build(pfkey_address_build(extensions + exttype,
-					       exttype, 0, 0, sockaddrof(&t)),
+					       exttype, 0, 0, &sa.sa),
 			   description, text_said, extensions);
 }
 
@@ -1380,7 +1383,7 @@ bool pfkey_shunt_eroute(const struct connection *c,
 	{
 		const ip_address *peer = &sr->that.host_addr;
 		char buf2[256];
-		const ip_address any = address_any(addrtypeof(peer));
+		const ip_address any = address_any(address_type(peer));
 
 		snprintf(buf2, sizeof(buf2),
 			 "eroute_connection %s", opname);

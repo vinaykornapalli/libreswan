@@ -52,6 +52,7 @@
 #include "whack.h"
 #include "id.h"
 #include "ip_address.h"
+#include "ip_info.h"
 
 static void update_ports(struct whack_message * m)
 {
@@ -324,18 +325,18 @@ static void set_whack_end(char *lr,
 	case KH_DEFAULTROUTE:
 	case KH_IPHOSTNAME:
 		/* note: we always copy the name string below */
-		w->host_addr = address_any(l->addr_family);
+		w->host_addr = address_any(aftoinfo(l->addr_family));
 		break;
 
 	case KH_OPPO:
 	case KH_GROUP:
 	case KH_OPPOGROUP:
 		/* policy should have been set to OPPO */
-		w->host_addr = address_any(l->addr_family);
+		w->host_addr = address_any(aftoinfo(l->addr_family));
 		break;
 
 	case KH_ANY:
-		w->host_addr = address_any(l->addr_family);
+		w->host_addr = address_any(aftoinfo(l->addr_family));
 		break;
 
 	default:
@@ -365,10 +366,10 @@ static void set_whack_end(char *lr,
 		break;
 	}
 
-	if (!isanyaddr(&l->sourceip))
+	if (address_is_specified(&l->sourceip))
 		w->host_srcip = l->sourceip;
 
-	if (!isanyaddr(&l->vti_ip.addr))
+	if (subnet_is_specified(&l->vti_ip))
 		w->host_vtiip = l->vti_ip;
 
 	w->has_client = l->has_client;

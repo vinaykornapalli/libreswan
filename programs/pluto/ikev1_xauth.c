@@ -183,8 +183,8 @@ static bool get_internal_addresses(
 		}
 		*got_lease = TRUE;
 	} else {
-		passert(!isanyaddr(&c->spd.that.client.addr));
-		ia->ipaddr = c->spd.that.client.addr;
+		passert(subnet_is_specified(&c->spd.that.client));
+		ia->ipaddr = subnet_endpoint(&c->spd.that.client);
 	}
 
 	return TRUE;
@@ -231,8 +231,6 @@ static stf_status isakmp_add_attr(pb_stream *strattr,
 				   const struct state *st)
 {
 	pb_stream attrval;
-	const unsigned char *byte_ptr;
-	unsigned int len;
 	bool ok = TRUE;
 	struct connection *c = st->st_connection;
 
@@ -249,16 +247,15 @@ static stf_status isakmp_add_attr(pb_stream *strattr,
 
 	switch (attr_type) {
 	case INTERNAL_IP4_ADDRESS:
-		len = addrbytesptr_read(&ia->ipaddr, &byte_ptr);
-		ok = out_raw(byte_ptr, len, &attrval,
-			     "IP4_addr");
+		if (!pbs_out_address(&ia->ipaddr, &attrval, "IP_addr")) {
+			return STF_INTERNAL_ERROR;
+		}
 		break;
 
 	case INTERNAL_IP4_SUBNET:
-		len = addrbytesptr_read(
-			&c->spd.this.client.addr, &byte_ptr);
-		if (!out_raw(byte_ptr, len, &attrval, "IP4_subnet"))
+		if (!pbs_out_address(&c->spd.this.client.addr, &attrval, "IP4_subnet")) {
 			return STF_INTERNAL_ERROR;
+		}
 		/* FALL THROUGH */
 	case INTERNAL_IP4_NETMASK:
 	{
@@ -289,9 +286,9 @@ static stf_status isakmp_add_attr(pb_stream *strattr,
 				return STF_INTERNAL_ERROR;
 			}
 			/* emit attribute's value */
-			len = addrbytesptr_read(&dnsip, &byte_ptr);
-			if (!out_raw(byte_ptr, len, &attrval, "IP4_dns"))
+			if (!pbs_out_address(&dnsip, &attrval, "IP4_dns")) {
 				return STF_INTERNAL_ERROR;
+			}
 
 			ipstr = strtok(NULL, ", ");
 			if (ipstr != NULL) {
@@ -1232,7 +1229,6 @@ static void xauth_launch_authent(struct state *st,
 
 	pfreeany(arg_name);
 	pfreeany(arg_password);
-
 }
 
 /* log a nice description of an unsupported attribute */
@@ -1574,12 +1570,9 @@ static stf_status modecfg_inI2(struct msg_digest *md, pb_stream *rbody)
 			loglog(RC_LOG, "Received IP address %s",
 				      caddr);
 
-			if (addrbytesptr_read(&c->spd.this.host_srcip,
-					 NULL) == 0 ||
-			    isanyaddr(&c->spd.this.host_srcip)) {
-				libreswan_log(
-					"setting ip source address to %s",
-					caddr);
+			if (!address_is_specified(&c->spd.this.host_srcip)) {
+				libreswan_log("setting ip source address to %s",
+					      caddr);
 				c->spd.this.host_srcip = a;
 			}
 		}
@@ -1733,13 +1726,9 @@ stf_status modecfg_inR1(struct state *st, struct msg_digest *md)
 					"Received IPv4 address: %s",
 					caddr);
 
-				if (addrbytesptr_read(&c->spd.this.host_srcip,
-						 NULL) == 0 ||
-				    isanyaddr(&c->spd.this.host_srcip))
-				{
-					DBG(DBG_CONTROL, DBG_log(
-						"setting ip source address to %s",
-						caddr));
+				if (!address_is_specified(&c->spd.this.host_srcip)) {
+					dbg("setting ip source address to %s",
+					    caddr);
 					c->spd.this.host_srcip = a;
 				}
 				resp |= LELEM(attr.isaat_af_type & ISAKMP_ATTR_RTYPE_MASK);
@@ -1799,7 +1788,7 @@ stf_status modecfg_inR1(struct state *st, struct msg_digest *md)
 				if (!c->spd.that.has_client) {
 					passert(c->spd.spd_next == NULL);
 					c->spd.that.has_client = TRUE;
-					c->spd.that.client = *ipv4_info.all;
+					c->spd.that.client = *ipv4_info.all_addresses;
 					c->spd.that.has_client_wildcard = FALSE;
 				}
 

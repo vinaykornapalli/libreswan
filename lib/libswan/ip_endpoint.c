@@ -18,17 +18,18 @@
 #include "ip_endpoint.h"
 #include "constants.h"		/* for memeq() */
 #include "ip_info.h"
+#include "lswlog.h"		/* for bad_case() */
 
 ip_endpoint endpoint(const ip_address *address, int port)
 {
-	return hsetportof(port, *address);
+	return set_endpoint_port(address, port);
 }
 
-err_t sockaddr_as_endpoint(const struct sockaddr *sa, socklen_t sa_len, ip_endpoint *e)
+err_t sockaddr_to_endpoint(const ip_sockaddr *sa, socklen_t sa_len, ip_endpoint *e)
 {
 	/* paranoia from demux.c */
-	if (sa_len < (socklen_t) (offsetof(struct sockaddr, sa_family) +
-				  sizeof(sa->sa_family))) {
+	if (sa_len < (socklen_t) (offsetof(ip_sockaddr, sa.sa_family) +
+				  sizeof(sa->sa.sa_family))) {
 		zero(e); /* something better? this is AF_UNSPEC */
 		return "truncated";
 	}
@@ -42,27 +43,25 @@ err_t sockaddr_as_endpoint(const struct sockaddr *sa, socklen_t sa_len, ip_endpo
 	 */
 	ip_address address;
 	int port;
-	switch (sa->sa_family) {
+	switch (sa->sa.sa_family) {
 	case AF_INET:
 	{
-		const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
 		/* XXX: to strict? */
-		if (sa_len != sizeof(*sin)) {
+		if (sa_len != sizeof(sa->sin)) {
 			return "wrong length";
 		}
-		address = address_from_in_addr(&sin->sin_addr);
-		port = ntohs(sin->sin_port);
+		address = address_from_in_addr(&sa->sin.sin_addr);
+		port = ntohs(sa->sin.sin_port);
 		break;
 	}
 	case AF_INET6:
 	{
-		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)sa;
 		/* XXX: to strict? */
-		if (sa_len != sizeof(*sin6)) {
+		if (sa_len != sizeof(sa->sin6)) {
 			return "wrong length";
 		}
-		address = address_from_in6_addr(&sin6->sin6_addr);
-		port = ntohs(sin6->sin6_port);
+		address = address_from_in6_addr(&sa->sin6.sin6_addr);
+		port = ntohs(sa->sin6.sin6_port);
 		break;
 	}
 	case AF_UNSPEC:
@@ -79,8 +78,8 @@ ip_address endpoint_address(const ip_endpoint *endpoint)
 #ifdef ENDPOINT_ADDRESS_PORT
 	return endpoint->address;
 #else
-	if (address_is_valid(endpoint)) {
-		return hsetportof(0, *endpoint);
+	if (address_type(endpoint) != NULL) {
+		return set_endpoint_port(endpoint, 0); /* scrub the port */
 	} else {
 		return *endpoint; /* empty_address? */
 	}
@@ -89,25 +88,59 @@ ip_address endpoint_address(const ip_endpoint *endpoint)
 
 int endpoint_port(const ip_endpoint *endpoint)
 {
-	return hportof(endpoint);
+	const struct ip_info *afi = endpoint_type(endpoint);
+	if (afi == NULL) {
+		/* not asserting, who knows what nonsense a user can generate */
+		libreswan_log("endpoint has unspecified type");
+		return -1;
+	}
+	switch (afi->af) {
+	case AF_INET:
+		return ntohs(endpoint->u.v4.sin_port);
+	case AF_INET6:
+		return ntohs(endpoint->u.v6.sin6_port);
+	default:
+		bad_case(afi->af);
+	}
 }
 
-ip_endpoint set_endpoint_port(const ip_endpoint *address, int port)
+ip_endpoint set_endpoint_port(const ip_endpoint *endpoint, int port)
 {
-	return hsetportof(port, *address);
+	const struct ip_info *afi = endpoint_type(endpoint);
+	if (afi == NULL) {
+		/* not asserting, who knows what nonsense a user can generate */
+		libreswan_log("endpoint has unspecified type");
+		return endpoint_invalid;
+	}
+	ip_endpoint dst = *endpoint;
+	switch (afi->af) {
+	case AF_INET:
+		dst.u.v4.sin_port = htons(port);
+		break;
+	case AF_INET6:
+		dst.u.v6.sin6_port = htons(port);
+		break;
+	default:
+		bad_case(afi->af);
+	}
+	return dst;
 }
 
-int endpoint_type(const ip_endpoint *endpoint)
+const struct ip_info *endpoint_type(const ip_endpoint *endpoint)
 {
-	return addrtypeof(endpoint);
+	/*
+	 * Avoid endpoint*() functions as things quickly get
+	 * recursive.
+	 */
+	return address_type(endpoint);
 }
 
-const struct ip_info *endpoint_info(const ip_endpoint *endpoint)
+bool endpoint_is_specified(const ip_endpoint *e)
 {
-#ifdef ENDPOINT_ADDRESS_PORT
-	return address_info(&endpoint->address);
+#ifdef ENDPOINT_TYPE
+	return address_is_specified(&e->address);
 #else
-	return address_info(endpoint);
+	return address_is_specified(e);
 #endif
 }
 
@@ -131,15 +164,25 @@ static void format_endpoint(jambuf_t *buf, bool sensitive,
 		jam(buf, "<none:>");
 		return;
 	}
+
+	/*
+	 * An endpoint with no type (i.e., uninitialized) can't be
+	 * sensitive so always log it.
+	 */
+	const struct ip_info *afi = endpoint_type(endpoint);
+	if (afi == NULL) {
+		jam(buf, "<unspecified:>");
+		return;
+	}
+
 	if (sensitive) {
 		jam(buf, "<address:>");
 		return;
 	}
 	ip_address address = endpoint_address(endpoint);
 	int port = endpoint_port(endpoint);
-	int type = endpoint_type(endpoint);
 
-	switch (type) {
+	switch (afi->af) {
 	case AF_INET: /* N.N.N.N[:PORT] */
 		jam_address(buf, &address);
 		if (port > 0) {
@@ -156,12 +199,8 @@ static void format_endpoint(jambuf_t *buf, bool sensitive,
 			jam_address(buf, &address);
 		}
 		break;
-	case AF_UNSPEC:
-		jam(buf, "<unspecified:>");
-		return;
 	default:
-		jam(buf, "<invalid:>");
-		return;
+		bad_case(afi->af);
 	}
 }
 
@@ -202,20 +241,61 @@ const ip_endpoint endpoint_invalid = {
 };
 #endif
 
-bool endpoint_is_invalid(const ip_endpoint *endpoint)
+/*
+ * portof - get the port field of an ip_endpoint in network order.
+ *
+ * Return -1 if ip_endpoint isn't valid.
+ */
+
+ip_endpoint nsetportof(int port /* network order */, ip_endpoint endpoint)
 {
-#ifdef ENDPOINT_ADDRESS_PORT
-	return address_is_unspec(&endpoint->address);
-#else
-	return address_is_invalid(endpoint);
-#endif
+	return set_endpoint_port(&endpoint, htons(port));
 }
 
-bool endpoint_is_valid(const ip_endpoint *endpoint)
+ip_endpoint hsetportof(int port /* host order */, ip_endpoint endpoint)
 {
-#ifdef ENDPOINT_ADDRESS_PORT
-	return address_is_valid(&endpoint->address);
-#else
-	return address_is_valid(endpoint);
+	return set_endpoint_port(&endpoint, port);
+}
+
+/*
+ * Construct and return a sockaddr structure.
+ */
+
+size_t endpoint_to_sockaddr(const ip_endpoint *endpoint, ip_sockaddr *sa)
+{
+	zero(sa);
+	const struct ip_info *afi = endpoint_type(endpoint);
+	if (afi == NULL) {
+		return 0;
+	}
+	ip_address address = endpoint_address(endpoint);
+	int port = endpoint_port(endpoint);
+
+	shunk_t src_addr = address_as_shunk(&address);
+	chunk_t dst_addr;
+
+	switch (afi->af) {
+	case AF_INET:
+		sa->sin.sin_family = afi->af;
+		sa->sin.sin_port = htons(port);
+		dst_addr = THING_AS_CHUNK(sa->sin.sin_addr);
+#ifdef NEED_SIN_LEN
+		sa->sin.sin_len = sizeof(struct sockaddr_in);
 #endif
+		break;
+	case AF_INET6:
+		sa->sin6.sin6_family = afi->af;
+		sa->sin6.sin6_port = htons(port);
+		dst_addr = THING_AS_CHUNK(sa->sin6.sin6_addr);
+#ifdef NEED_SIN_LEN
+		sa->sin6.sin6_len = sizeof(struct sockaddr_in6);
+#endif
+		break;
+	default:
+		bad_case(afi->af);
+	}
+	passert(src_addr.len == afi->ip_size);
+	passert(dst_addr.len == afi->ip_size);
+	memcpy(dst_addr.ptr, src_addr.ptr, src_addr.len);
+	return afi->sockaddr_size;
 }

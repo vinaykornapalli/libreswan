@@ -69,6 +69,7 @@
 #include "pfkey_help.h"
 #include "ip_address.h"
 #include "ip_said.h"
+#include "ip_info.h"
 
 struct encap_msghdr *em;
 
@@ -542,7 +543,6 @@ int main(int argc, char *argv[])
 	__u32 spi = 0;
 	int c;
 	ip_said said;
-	const char *error_s;
 	char ipsaid_txt[SATOT_BUF];
 
 	int outif = 0;
@@ -810,15 +810,17 @@ int main(int argc, char *argv[])
 					progname, optarg, edst_opt);
 				exit(1);
 			}
-			error_s = ttoaddr_num(optarg, 0, address_family, &edst);
-			if (error_s != NULL) {
-				if (error_s) {
+
+			{
+				err_t e = ttoaddr_num(optarg, 0, address_family, &edst);
+				if (e != NULL) {
 					fprintf(stderr,
 						"%s: Error, %s converting --edst argument:%s\n",
-						progname, error_s, optarg);
+						progname, e, optarg);
 					exit(1);
 				}
 			}
+
 			edst_opt = optarg;
 			if (debug) {
 				ipstr_buf b;
@@ -909,9 +911,9 @@ int main(int argc, char *argv[])
 				exit(1);
 			}
 			/* currently we ensure that all addresses belong to the same address family */
-			dst = address_any(address_family);
-			edst = address_any(address_family);
-			src = address_any(address_family);
+			dst = address_any(aftoinfo(address_family));
+			edst = address_any(aftoinfo(address_family));
+			src = address_any(aftoinfo(address_family));
 			af_opt = optarg;
 			break;
 
@@ -940,13 +942,17 @@ int main(int argc, char *argv[])
 					progname, optarg, spi_opt);
 				exit(1);
 			}
-			error_s = ttosa(optarg, 0, &said);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --sa argument:%s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttosa(optarg, 0, &said);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --sa argument:%s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			if (debug) {
 				satot(&said, 0, ipsaid_txt,
 				      sizeof(ipsaid_txt));
@@ -963,9 +969,9 @@ int main(int argc, char *argv[])
 					progname, address_family, optarg);
 				exit(1);
 			}
-			dst = address_any(address_family);
-			edst = address_any(address_family);
-			src = address_any(address_family);
+			dst = address_any(aftoinfo(address_family));
+			edst = address_any(aftoinfo(address_family));
+			src = address_any(aftoinfo(address_family));
 			said_opt = optarg;
 			break;
 
@@ -1007,13 +1013,17 @@ int main(int argc, char *argv[])
 					progname, optarg, dst_opt);
 				exit(1);
 			}
-			error_s = ttoaddr_num(optarg, 0, address_family, &dst);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --dst argument:%s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttoaddr_num(optarg, 0, address_family, &dst);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --dst argument:%s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			dst_opt = optarg;
 			if (debug) {
 				ipstr_buf b;
@@ -1081,13 +1091,17 @@ int main(int argc, char *argv[])
 					progname, optarg, src_opt);
 				exit(1);
 			}
-			error_s = ttoaddr_num(optarg, 0, address_family, &src);
-			if (error_s != NULL) {
-				fprintf(stderr,
-					"%s: Error, %s converting --src argument:%s\n",
-					progname, error_s, optarg);
-				exit(1);
+
+			{
+				err_t e = ttoaddr_num(optarg, 0, address_family, &src);
+				if (e != NULL) {
+					fprintf(stderr,
+						"%s: Error, %s converting --src argument:%s\n",
+						progname, e, optarg);
+					exit(1);
+				}
 			}
+
 			src_opt = optarg;
 			if (debug) {
 				ipstr_buf b;
@@ -1417,11 +1431,13 @@ int main(int argc, char *argv[])
 				progname, ipstr(&src, &b));
 		}
 
+		ip_sockaddr src_sa;
+		passert(endpoint_to_sockaddr(&src, &src_sa) > 0);
 		error = pfkey_address_build(&extensions[SADB_EXT_ADDRESS_SRC],
 					    SADB_EXT_ADDRESS_SRC,
 					    0,
 					    0,
-					    sockaddrof(&src));
+					    &src_sa.sa);
 		if (error != 0) {
 			ipstr_buf b;
 
@@ -1432,11 +1448,13 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 
+		ip_sockaddr edst_sa;
+		passert(endpoint_to_sockaddr(&edst, &edst_sa) > 0);
 		error = pfkey_address_build(&extensions[SADB_EXT_ADDRESS_DST],
 					    SADB_EXT_ADDRESS_DST,
 					    0,
 					    0,
-					    sockaddrof(&edst));
+					    &edst_sa.sa);
 		if (error != 0) {
 			ipstr_buf b;
 
@@ -1480,8 +1498,8 @@ int main(int argc, char *argv[])
 					fprintf(stdout, "%s: key not provided (NULL alg?).\n",
 						progname);
 				break;
-
 			}
+
 			error = pfkey_key_build(&extensions[SADB_EXT_KEY_ENCRYPT],
 						SADB_EXT_KEY_ENCRYPT,
 						enckeylen * 8,
@@ -1493,6 +1511,7 @@ int main(int argc, char *argv[])
 				pfkey_extensions_free(extensions);
 				exit(1);
 			}
+
 			if (debug) {
 				fprintf(stdout,
 					"%s: key_e extension assembled.\n",

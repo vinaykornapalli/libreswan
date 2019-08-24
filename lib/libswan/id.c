@@ -181,7 +181,8 @@ void idtoa(const struct id *id, char *dst, size_t dstlen)
 		if (isanyaddr(&id->ip_addr)) {
 			snprintf(dst, dstlen, "%s", "%any");
 		} else {
-			addrtot(&id->ip_addr, 0, dst, dstlen);
+			jambuf_t b = array_as_jambuf(dst, dstlen);
+			jam_address(&b, &id->ip_addr);
 		}
 		break;
 	case ID_FQDN:
@@ -592,8 +593,8 @@ bool same_dn_any_order(chunk_t a, chunk_t b)
 		DBG(DBG_CONTROL, {
 			DBG_log("%s: not an exact match, now checking any RDN order",
 				 __func__);
-			// DBG_dump_chunk("a", a);
-			// DBG_dump_chunk("b", b);
+			// DBG_dump_hunk("a", a);
+			// DBG_dump_hunk("b", b);
 		});
 		ret = match_dn_unordered(a, b, NULL);
 	}
