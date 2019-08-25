@@ -353,8 +353,8 @@ stf_status ikev2_session_resume_inR1outI2(struct state *st, struct msg_digest *m
         }
     }
 
-    /* Ni in */
-	RETURN_STF_FAILURE(accept_v2_nonce(md, &st->st_nr, "Ni"));
+    /* Nr in */
+	RETURN_STF_FAILURE(accept_v2_nonce(md, &st->st_nr, "Nr"));
     
     /*to-do: Right time to start generating new keys from old keys */
 
