@@ -44,6 +44,8 @@ struct ike_ticket_state {
     /* All the chosen Algorithm Description */
     struct trans_attrs st_oakley;
 
+    enum keyword_authby authentication_method;
+
     deltatime_t expiration_time;
 };
 
@@ -91,6 +93,8 @@ bool ticket_to_st(const struct state *st , const chunk_t ticket);
 void ikev2_session_resume_outI1(struct state *st);
 stf_status ikev2_session_resume_inI1outR1(struct state *st, struct msg_digest *md);
 stf_status ikev2_session_resume_inR1outI2(struct state *st, struct msg_digest *md);
+stf_status ikev2_session_resume_ike_sa_process_auth_request_no_skeyid(struct state *st,
+                                                             struct msg_digest *md UNUSED);
 
 
 /* Functions related to hibernate/resume connection */
