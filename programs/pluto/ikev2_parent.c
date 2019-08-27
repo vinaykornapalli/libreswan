@@ -3079,24 +3079,26 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 		freeanychunk(tk_payl_chunk);
 
 		
-		/* N(TICKET_ACK) comes into action if there are any packet size limitations 
-		To-do: Need to find those situations. */
-	    #if 0
+   /* 
+	* N(TICKET_ACK) comes into action if there are any packet size limitations 
+	* To-do: Need to find those situations. 
+	*/
+#if 0
 		if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
 			return STF_INTERNAL_ERROR;
 		DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
-		#endif
+#endif
 
-		/*As per RFC 
-		 "Returns an N(TICKET_NACK) payload, if it refuses to grant a
-          ticket for some reason."
-		 But currently exact reason for not granting is not determined yet.
-		*/
-         
-		#if 0
+   /*
+	*As per RFC 
+	*Returns an N(TICKET_NACK) payload, if it refuses to grant a
+	*ticket for some reason.
+	*But currently exact reason for not granting is not determined yet.
+	*/
+#if 0
 		if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
 			return STF_INTERNAL_ERROR;
-		#endif
+#endif
 	    
 	}
 
