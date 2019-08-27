@@ -59,11 +59,11 @@ struct ticket_by_value {
     uint8_t reserved;
 
     /* Reference to the key stored in NSS database */
-    #if 0
+#if 0
     PK11SymKey key_id;
 
     u_char IV[MAX_DIGEST_LEN];
-    #endif
+#endif
     
     /* The part to be encrypted */
     struct ike_ticket_state ike_tk_state;

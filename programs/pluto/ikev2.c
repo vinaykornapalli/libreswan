@@ -612,15 +612,17 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .processor  = process_encrypted_informational_ikev2,
 	  .recv_type  = ISAKMP_v2_INFORMATIONAL,
 	  .timeout_event = EVENT_RETAIN, },
+
+
       /* State Transistions Related to Session-Resumption(RFC 5723) */
-	{ .story      = "Hiberate STATE_PARENT_I3",
+	{ .story      = "The current Established IKE SA will be suspended.",
 	  .state      = STATE_PARENT_I3,
 	  .next_state = STATE_PARENT_HIBERNATED,
 	  .flags      = 0,
 	  .processor  = NULL,
 	  .timeout_event = EVENT_RETRANSMIT, },
 	  
-    { .story      = "Initiator: The Hibernated state is resumed and session_resume_outI1 packet sent",
+    { .story      = "Initiator: The Suspended state is resumed and first Session Resume Exchange packet sent.",
 	  .state      = STATE_PARENT_HIBERNATED,
 	  .next_state = STATE_PARENT_RESUME_I1,
       .flags      = SMF2_MSG_R_SET,
@@ -628,7 +630,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .processor  = NULL,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
-	{ .story      = "Responder: Respond to Session_Resume_outI1",
+	{ .story      = "Responder: Respond to First Session Resume Exchange Packet",
 	  .state      = STATE_PARENT_R0,
 	  .next_state = STATE_PARENT_RESUME_R1,
 	  .flags = SMF2_MSG_R_CLEAR,
@@ -638,7 +640,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
 	  .timeout_event = EVENT_SO_DISCARD, },
 
-	{ .story      = "Initiator: process inR1 , initiate IKE_AUTH",
+	{ .story      = "Initiator: process incoming Session Resume Packet from Responder , initiate IKE_AUTH",
 	  .state      = STATE_PARENT_RESUME_I1,
 	  .next_state = STATE_PARENT_RESUME_I2,
 	  .flags = SMF2_MSG_R_SET,
@@ -648,7 +650,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
 	  .timeout_event = EVENT_RETRANSMIT, },
 
-	{ .story      = "Responder: process IKE_AUTH request in session resume",
+	{ .story      = "Responder: process IKE_AUTH request after Session Resume Exchanges",
 	  .state      = STATE_PARENT_RESUME_R1,
 	  .next_state = STATE_V2_IPSEC_R,
 	  .flags = SMF2_MSG_R_CLEAR | SMF2_ESTABLISHED,
@@ -660,7 +662,7 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .recv_type  = ISAKMP_v2_IKE_AUTH,
 	  .timeout_event = EVENT_SA_REPLACE, },
 
-	{ .story      = "Initiator: process IKE_AUTH response in session resume",
+	{ .story      = "Initiator: process IKE_AUTH response after Session Resume Exchanges",
 	  .state      = STATE_PARENT_RESUME_I2,
 	  .next_state = STATE_V2_IPSEC_I,
 	  .flags = SMF2_MSG_R_SET | SMF2_ESTABLISHED,
