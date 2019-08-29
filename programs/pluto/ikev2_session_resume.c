@@ -70,11 +70,11 @@ chunk_t st_to_ticket(const struct state *st) {
            struct ike_ticket_state ts;
 
            /* IDi */
-           memcpy(&ts.IDi, &(st->st_connection->spd.this.id), sizeof(struct id));
-
+		   id_buf ibuf ;
+		   memcpy(&ts.IDi ,str_id(&st->st_connection->spd.this.id , &ibuf) , IDTOA_BUF);
            /* IDr */
-
-           memcpy(&ts.IDr, &(st->st_connection->spd.that.id), sizeof(struct id));
+		   id_buf rbuf;
+		   memcpy(&ts.IDr ,str_id(&st->st_connection->spd.that.id , &rbuf) , IDTOA_BUF);
 
            /* SPIi */
            memcpy(&ts.SPIi, st->st_ike_spis.initiator.bytes, IKE_SA_SPI_SIZE);
@@ -82,9 +82,11 @@ chunk_t st_to_ticket(const struct state *st) {
            /* SPIr */
            memcpy(&ts.SPIr, st->st_ike_spis.responder.bytes, IKE_SA_SPI_SIZE);
 
-           ts.sk_d_old = chunk_from_symkey("sk_d_old" , st->st_skey_d_nss);
-
-           memcpy(&ts.st_oakley, &(st->st_oakley), sizeof(struct trans_attrs));
+           /*old skeyseed*/
+           chunk_t sk = chunk_from_symkey("sk_d_old" , st->st_skey_d_nss);
+		   memcpy(&ts.sk_d_old , sk.ptr , sk.len);
+           /*Accepted proposals by Responder*/
+           memcpy(&ts.ike_algos, st->st_accepted_ike_proposal, sizeof(struct ike_proposals));
 
            ts.authentication_method = st->st_connection->spd.that.authby;
 
@@ -105,23 +107,50 @@ chunk_t st_to_ticket(const struct state *st) {
 bool ticket_to_st(const struct state *st , const chunk_t ticket) {
   /* Extraction of ticket */
 
-  if(ticket.len <= 1) {
+  if (ticket.len <= 1) {
       /*something went wrong*/
    return FALSE;
   }
-  struct ike_ticket_state  tk;
-  
-  memcpy(&tk , ticket.ptr , ticket.len);
-  
+  void *crnt = ticket.ptr;
 
-  /*All the SA negotiations this is the reason for not having SAi,SAr in session exchange*/
-  st->st_oakley = tk.st_oakley;
+  /*IDs*/
+  err_t ughi = atoid(crnt ,&st->st_connection->spd.this.id , FALSE);
+  crnt+=IDTOA_BUF;
+  err_t ughr = atoid(crnt , &st->st_connection->spd.that.id , FALSE);
+  crnt+=IDTOA_BUF;
+  if (ughi!=NULL || ughr!=NULL) {
+      return FALSE;
+  }
 
-  /*setting back the old skeyseed*/
-  st->st_skey_d_nss = symkey_from_chunk("sk_d_old" , tk.sk_d_old);
+  /*SPIs*/
+  memcpy(st->st_ike_spis.initiator.bytes, crnt, IKE_SA_SPI_SIZE);
+  crnt+=IKE_SA_SPI_SIZE;
+  memcpy(st->st_ike_spis.responder.bytes, crnt, IKE_SA_SPI_SIZE);
+  crnt+=IKE_SA_SPI_SIZE;
 
+  /*sk_d_old*/
+  size_t key_length = *crnt;
+  crnt+=1;
+  chunk_t key_chunk = {
+	  .ptr = crnt,
+	  .len = key_length
+  }
+  st->st_skey_d_nss = symkey_from_chunk("sk_d_old" , key_chunk);
+
+   /*All the SA negotiations this is the reason for not having SAi,SAr in session exchange*/
+   crnt+=MAX_OAKLEY_KEY_LEN;
+   size_t proposal_size = sizeof(struct ike_proposals);
+   memcpy(st->st_accepted_ike_proposal,crnt, proposal_size);
+
+    /*Now extract st_oakley out of it.*/
+   	if (!ikev2_proposal_to_trans_attrs(st->st_accepted_ike_proposal,
+					   &st->st_oakley)) {
+		return FALSE;
+	}
+
+  crnt+=proposal_size;
   /*authentication method*/
-  st->st_connection->spd.that.authby = tk.authentication_method;
+  memcpy(st->st_connection->spd.that.authby, crnt , sizeof(struct(auth_alg_names)));
   return TRUE;
 }
 

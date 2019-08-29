@@ -28,21 +28,24 @@
 
 struct ike_ticket_state {
     /* IDi */
-    struct id IDi;
+    char  IDi[IDTOA_BUF];
     /* IDr */
-    struct id IDr;
+    char IDr[IDTOA_BUF];
 
     /* SPIi */ 
     uint8_t SPIi[IKE_SA_SPI_SIZE];
     
     /* SPIr */
     uint8_t SPIr[IKE_SA_SPI_SIZE];
-
+    size_t key_length;
+     
     /* Reference to sk_d_old */
-    chunk_t sk_d_old;
+    char sk_d_old[MAX_OAKLEY_KEY_LEN];
+
+    
 
     /* All the chosen Algorithm Description */
-    struct trans_attrs st_oakley;
+    struct ike_proposals ike_algos; 
 
     enum keyword_authby authentication_method;
 

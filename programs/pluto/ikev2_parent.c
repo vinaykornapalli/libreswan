@@ -3631,6 +3631,8 @@ stf_status ikev2_parent_inR2(struct state *st, struct msg_digest *md)
 					freeanychunk(tk_payl_chunk);
 					return STF_FATAL;
 			    }
+			} else {
+				DBG(DBG_CONTROLMORE, DBG_log("Received opaque ticket larger than max standard size"));
 			}
 		
 			break;
