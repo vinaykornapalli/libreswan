@@ -1770,6 +1770,7 @@ void hibernate_connection(struct connection *c) {
     /* Deleting the child sa of the current state */
     whack_log(RC_COMMENT, "cst to be deleted - %ld", c->newest_ipsec_sa);
     if(cst!=NULL) {
+		/* TODO: this should not send a delete notify */
         event_force(EVENT_SA_EXPIRE, cst);
     }
      

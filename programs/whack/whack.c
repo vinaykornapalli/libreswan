@@ -351,7 +351,7 @@ enum option_enums {
 	OPT_WHACKRECORD,
 	OPT_WHACKSTOPRECORD,
 	OPT_HIBERNATE,
-	OPT_RESUME,
+	OPT_IKE_RESUME,
 
 #define OPT_LAST2 OPT_WHACKSTOPRECORD	/* last "normal" option, range 2 */
 
@@ -467,7 +467,7 @@ enum option_enums {
 	CD_RSA_SHA2_384,
 	CD_RSA_SHA2_512,
 	CD_ESP,
-	CD_SESSION_RESUME,
+	CD_IKE_SESSION_RESUME,
 #   define CD_LAST CD_ESP	/* last connection description */
 
 /*
@@ -593,7 +593,7 @@ static const struct option long_opts[] = {
 
 	{ "asynchronous", no_argument, NULL, OPT_ASYNC + OO },
 	{ "suspend", no_argument, NULL, OPT_HIBERNATE + OO },
-	{ "resume", no_argument, NULL, OPT_RESUME + OO },
+	{ "resume", no_argument, NULL, OPT_IKE_RESUME + OO },
 
 	/* list options */
 
@@ -1260,7 +1260,7 @@ int main(int argc, char **argv)
 		    msg.whack_hibernate = TRUE;
 			continue;
 
-		case OPT_RESUME:
+		case OPT_IKE_RESUME:
 		    if(msg.whack_hibernate) {
 				diag("Use only one of the flags i.e., --suspend --name <conname> or --resume --name <conname>");
 			} else {
@@ -1716,7 +1716,7 @@ int main(int argc, char **argv)
 		/* --mobike */
 		case CDP_SINGLETON + POLICY_MOBIKE_IX:
 
-		 /* --SESSION-RESUMPTION */
+		 /* --session-resumption */
 		case CDP_SINGLETON + POLICY_SESSION_RESUME_IX:
 
 		/* --sareftrack */
@@ -2425,7 +2425,7 @@ int main(int argc, char **argv)
 		       LELEM(OPT_INITIATE) | LELEM(OPT_TERMINATE) |
 		       LELEM(OPT_DELETE) |  LELEM(OPT_DELETEID) |
 		       LELEM(OPT_DELETEUSER) | LELEM(OPT_CD) | 
-			   LELEM(OPT_HIBERNATE) | LELEM(OPT_RESUME))) {
+			   LELEM(OPT_HIBERNATE) | LELEM(OPT_IKE_RESUME))) {
 		if (!LHAS(opts1_seen, OPT_NAME))
 			diag("missing --name <connection_name>");
 	} else if (msg.whack_options == LEMPTY) {

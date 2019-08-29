@@ -747,7 +747,6 @@ struct state {
 	bool st_peer_wants_null;		/* We received IDr payload of type ID_NULL (and we allow POLICY_AUTH_NULL */
 	/* Stuff belonging to session-resumption */
 	bool st_seen_ticket_request;    /* seen TICKCET_REQUEST */
-	bool st_sent_ticket;            /* sent TICKET notify */
 	bool st_seen_ticket;            /* seen TICKET */
 	bool st_seen_ticket_ack;        /* seen TICKET_ACK */
 	chunk_t ticket_stored;          /* Ticket stored at client end */
