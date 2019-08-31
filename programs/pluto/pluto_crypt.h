@@ -84,6 +84,7 @@ enum pluto_crypto_requests {
 	pcr_compute_dh_iv,	/* calculate (g^x)(g^y) and skeyids for Phase 1 DH + prf */
 	pcr_compute_dh,		/* calculate (g^x)(g^y) for Phase 2 PFS */
 	pcr_compute_dh_v2,	/* perform IKEv2 SA calculation, create SKEYSEED */
+	pcr_compute_session_resume_v2 /*create SKEYSEED without dh*/
 };
 
 typedef unsigned int pcr_req_id;
@@ -262,6 +263,31 @@ struct pcr_dh_v2 {
 	chunk_t skey_chunk_SK_pr;
 };
 
+struct pcr_session_resume_v2 {
+	const struct prf_desc *prf;
+	const struct encrypt_desc *encrypt;
+	const struct integ_desc *integ;
+	enum original_role role;
+	size_t key_size; /* of encryptor, in bytes */
+	wire_chunk_t ni;
+	wire_chunk_t nr;
+	ike_spis_t ike_spis;
+	size_t literal_length;
+	uint8_t *resumption; 
+	PK11SymKey *skey_d_old;
+
+	/*outgoing*/
+	PK11SymKey *skeyid_d;
+	PK11SymKey *skeyid_ai;
+	PK11SymKey *skeyid_ar;
+	PK11SymKey *skeyid_ei;
+	PK11SymKey *skeyid_er;
+	PK11SymKey *skeyid_pi;
+	PK11SymKey *skeyid_pr;
+	chunk_t skey_chunk_SK_pi;
+	chunk_t skey_chunk_SK_pr;
+}
+
 struct pluto_crypto_req {
 	enum pluto_crypto_requests pcr_type;
 
@@ -269,6 +295,7 @@ struct pluto_crypto_req {
 		struct pcr_kenonce kn;		/* query and result */
 		struct pcr_dh_v2 dh_v2;		/* query and response v2 */
 		struct pcr_v1_dh v1_dh;		/* query and response v1 */
+		struct pcr_session_resume_v2 v2_sr /*query and response v2 session resume*/
 	} pcr_d;
 };
 
@@ -397,6 +424,8 @@ extern bool finish_dh_v2(struct state *st,
 /* internal */
 extern void calc_dh_v2(struct pluto_crypto_req *r);
 extern void cancelled_dh_v2(struct pcr_dh_v2 *dh);
+extern void calc_skeyseed_session_resume_v2(struct pluto_crypto_req *r);
+extern void cancelled_session_resume_v2(struct pcr_session_resume_v2 *dh);
 
 /*
  * KE and NONCE
@@ -414,5 +443,6 @@ struct pcr_v1_dh *pcr_v1_dh_init(struct pluto_crypto_req_cont *cn,
 				 enum pluto_crypto_requests pcr_type);
 
 struct pcr_dh_v2 *pcr_dh_v2_init(struct pluto_crypto_req_cont *cn);
+
 
 #endif /* _PLUTO_CRYPT_H */

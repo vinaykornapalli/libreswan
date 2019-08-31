@@ -38,6 +38,13 @@ PK11SymKey *ikev2_ike_sa_skeyseed(const struct prf_desc *prf_desc,
 				  const chunk_t Ni, const chunk_t Nr,
 				  PK11SymKey *dh_secret);
 
+PK11SymKey *ikev2_ike_sa_session_resume_skeyseed(const struct prf_desc *prf_desc,
+                  PK11SymKey *SK_d_old,
+                  uint8_t *resumption ,
+				  const chunk_t Ni, const chunk_t Nr,
+				  size_t literal_size );
+
+
 PK11SymKey *ikev2_ike_sa_rekey_skeyseed(const struct prf_desc *prf_desc,
 					PK11SymKey *old_SK_d,
 					PK11SymKey *new_dh_secret,

@@ -240,6 +240,9 @@ static void pcr_cancelled(struct crypto_task **task)
 	case pcr_compute_dh:
 		cancelled_v1_dh(&r->pcr_d.v1_dh);
 		break;
+	case pcr_compute_session_resume_v2:
+	    cancelled_session_resume_v2(&r->pcr_d.v2_sr);
+		break;
 	case pcr_crypto:
 	default:
 		bad_case(r->pcr_type);
@@ -275,7 +278,6 @@ struct pcr_dh_v2 *pcr_dh_v2_init(struct pluto_crypto_req_cont *cn)
 	INIT_WIRE_ARENA(*dhq);
 	return dhq;
 }
-
 /*
  * If there are any helper threads, this code is always executed IN A HELPER
  * THREAD. Otherwise it is executed in the main (only) thread.
@@ -342,6 +344,9 @@ static void pcr_compute(struct crypto_task *task, int unused_helpernum UNUSED)
 
 	case pcr_compute_dh_v2:
 		calc_dh_v2(r);
+		break;
+	case pcr_compute_session_resume_v2:
+	    calc_skeyseed_session_resume_v2(r);
 		break;
 
 	case pcr_crypto:

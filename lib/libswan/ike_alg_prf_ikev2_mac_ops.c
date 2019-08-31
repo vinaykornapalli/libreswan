@@ -144,6 +144,31 @@ static PK11SymKey *ike_sa_rekey_skeyseed(const struct prf_desc *prf_desc,
 }
 
 /*
+ * SKEYSEED = prf(SK_d (old), "Resumption" | Ni | Nr)
+ */
+static PK11SymKey *ikev2_ike_sa_session_resume_skeyseed(const struct prf_desc *prf_desc,
+                  PK11SymKey *SK_d_old, 
+                  uint8_t *resumption ,
+				  const chunk_t Ni, const chunk_t Nr,
+				  size_t literal_size)
+{
+	/* key = SK_d (old) */
+	struct crypt_prf *prf = crypt_prf_init_symkey("ike sa session resume skeyseed", prf_desc,
+						      "SK_d (old)", SK_d_old);
+	
+		if (prf == NULL) {
+		libreswan_log("failed to create IKEv2 PRF for computing SKEYSEED = prf(SK_d (old), 'Resumption' | Ni | Nr)");
+		return NULL;
+	}
+	/* seed: 'resumption' | Ni | Nr) */
+	crypt_prf_update_bytes(prf,"'resumption' literal", resumption , literal_size);
+	crypt_prf_update_hunk(prf, "Ni", Ni);
+	crypt_prf_update_hunk(prf, "Nr", Nr);
+	/* generate */
+	return crypt_prf_final_symkey(&prf);
+}
+
+/*
  * Compute: prf+ (SKEYSEED, Ni | Nr | SPIi | SPIr)
  */
 static PK11SymKey *ike_sa_keymat(const struct prf_desc *prf_desc,
