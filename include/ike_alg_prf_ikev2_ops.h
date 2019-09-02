@@ -52,6 +52,12 @@ struct prf_ikev2_ops {
 	/* AUTH = prf( prf(Shared Secret, "Key Pad for IKEv2"), <{Initiator,Responder}SignedOctets>) */
 	chunk_t (*psk_auth)(const struct prf_desc *prf_desc, chunk_t pss,
 			    chunk_t first_packet, chunk_t nonce, shunk_t id_hash);
+	/* SKEYSEED = prf(SK_d (old), "Resumption" | Ni | Nr) */
+	PK11SymKey *(*ike_sa_session_resume_skeyseed)(const struct prf_desc *prf_desc,
+	               PK11SymKey *old_SK_d,
+	               uint8_t *resumption ,
+				   const chunk_t Ni, const chunk_t Nr,
+				   size_t literal_size);
 };
 
 extern const struct prf_ikev2_ops ike_alg_prf_ikev2_mac_ops;

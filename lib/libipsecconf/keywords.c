@@ -655,7 +655,8 @@ const struct keyword_def ipsec_conf_keywords[] = {
   { "aggressive",  kv_conn,  kt_invertbool,  KNCF_AGGRMODE, NULL, NULL, },
   /* alias for compatibility - undocumented on purpose */
   { "aggrmode",  kv_conn | kv_alias,  kt_invertbool,  KNCF_AGGRMODE, NULL, NULL, },
-
+    /*Session Resumption Enable or Disable*/
+   { "session-resumption",  kv_conn,  kt_bool,  KNCF_SESSION_RESUME, NULL, NULL, },
   { NULL,  0,  0,  0, NULL, NULL, }
 };
 

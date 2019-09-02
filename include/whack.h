@@ -348,7 +348,9 @@ struct whack_message {
 	int metric;
 
 	char *dnshostname;
-
+    /* The connection name on which hiberation and resumption apply*/
+	bool whack_hibernate;
+	bool whack_resume;
 	/* for use with general option adjustments */
 	enum whack_opt_set opt_set;
 	char *string1;

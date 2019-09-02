@@ -55,6 +55,8 @@ PK11SymKey *ikev2_ike_sa_skeyseed(const struct prf_desc *prf_desc,
 	return prf_desc->prf_ikev2_ops->ike_sa_skeyseed(prf_desc, Ni, Nr, dh_secret);
 }
 
+
+
 /*
  * SKEYSEED = prf(SK_d (old), g^ir (new) | Ni | Nr)
  */
@@ -65,6 +67,21 @@ PK11SymKey *ikev2_ike_sa_rekey_skeyseed(const struct prf_desc *prf_desc,
 {
 	return prf_desc->prf_ikev2_ops->ike_sa_rekey_skeyseed(prf_desc, SK_d_old, new_dh_secret, Ni, Nr);
 }
+
+PK11SymKey *ikev2_ike_sa_session_resume_skeyseed(const struct prf_desc *prf_desc,
+                  PK11SymKey *SK_d_old,
+                  uint8_t *resumption ,
+				  const chunk_t Ni, const chunk_t Nr,
+				  size_t literal_size)
+{
+	return prf_desc->prf_ikev2_ops->ike_sa_session_resume_skeyseed(prf_desc,
+	                                                                SK_d_old,
+	                                                                resumption ,
+	                                                                Ni ,
+																	Nr ,
+																	literal_size);
+}
+
 
 /*
  * Compute: prf+ (SKEYSEED, Ni | Nr | SPIi | SPIr)

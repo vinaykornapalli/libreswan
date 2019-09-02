@@ -90,6 +90,7 @@ enum rc_type {
 	RC_WILDCARD,		/* cannot initiate when ID has wildcards */
 	RC_CRLERROR,		/* CRL fetching disabled or obsolete reread cmd */
 	RC_WHACK_PROBLEM,	/* whack-detected problem */
+	RC_NONAME,          /* No conname is given as argument */
 
 	/* permanent failure */
 	RC_BADWHACKMESSAGE = 30,

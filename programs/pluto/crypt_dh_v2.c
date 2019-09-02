@@ -58,6 +58,23 @@ void cancelled_dh_v2(struct pcr_dh_v2 *dh)
 	freeanychunk(dh->skey_chunk_SK_pr);
 }
 
+void cancelled_session_resume_v2(struct pcr_session_resume_v2 *dh) {
+    /* incoming */
+		release_symkey("cancelled IKEv2 DH", "skey_d_old", &dh->skey_d_old);
+
+	/* outgoing */
+	release_symkey("cancelled IKEv2 DH", "skeyid_d", &dh->skeyid_d);
+	release_symkey("cancelled IKEv2 DH", "skeyid_ai", &dh->skeyid_ai);
+	release_symkey("cancelled IKEv2 DH", "skeyid_ar", &dh->skeyid_ar);
+	release_symkey("cancelled IKEv2 DH", "skeyid_ei", &dh->skeyid_ei);
+	release_symkey("cancelled IKEv2 DH", "skeyid_er", &dh->skeyid_er);
+	release_symkey("cancelled IKEv2 DH", "skeyid_pi", &dh->skeyid_pi);
+	release_symkey("cancelled IKEv2 DH", "skeyid_pr", &dh->skeyid_pr);
+
+	freeanychunk(dh->skey_chunk_SK_pi);
+	freeanychunk(dh->skey_chunk_SK_pr);
+}
+
 /*
  * invoke helper to do DH work.
  */
@@ -338,6 +355,122 @@ static void calc_skeyseed_v2(struct pcr_dh_v2 *sk,
 	});
 }
 
+/*This may not be the right place to place this functions maybe do crypt_session_resume.c work*/
+static void calc_skeyseed_v2_sr(struct pcr_session_resume_v2 *sk,
+                 const size_t key_size,
+			     PK11SymKey **SK_d_out,
+			     PK11SymKey **SK_ai_out,
+			     PK11SymKey **SK_ar_out,
+			     PK11SymKey **SK_ei_out,
+			     PK11SymKey **SK_er_out,
+			     PK11SymKey **SK_pi_out,
+			     PK11SymKey **SK_pr_out,
+				 chunk_t *chunk_SK_pi_out,
+			     chunk_t *chunk_SK_pr_out) 
+{
+		DBG(DBG_CRYPT, DBG_log("NSS: Started key computation"));
+
+	PK11SymKey
+		*skeyseed_k,
+		*SK_d_k,
+		*SK_ai_k,
+		*SK_ar_k,
+		*SK_ei_k,
+		*SK_er_k,
+		*SK_pi_k,
+		*SK_pr_k;
+		/* this doesn't take any memory, it's just moving pointers around */
+	chunk_t ni;
+	chunk_t nr;
+	chunk_t chunk_SK_pi;
+	chunk_t chunk_SK_pr;
+	setchunk_from_wire(ni, sk, &sk->ni);
+	setchunk_from_wire(nr, sk, &sk->nr);
+		passert(sk->prf != NULL);
+		
+	const struct prf_desc *prf = sk->prf;
+	const struct encrypt_desc *encrypter = sk->encrypt;
+
+	skeyseed_k = ikev2_ike_sa_session_resume_skeyseed(prf ,
+	                                                  sk->skey_d_old,
+	                                                  sk->resumption,
+													  ni , nr,
+													  sk->literal_length);
+
+	passert(skeyseed_k != NULL);
+
+	int skd_bytes = prf->prf_key_size;
+	int skp_bytes = prf->prf_key_size;
+	int integ_size = sk->integ ? sk->integ->integ_keymat_size : 0;
+	size_t total_keysize = skd_bytes + 2*skp_bytes + 2*key_size + 2*integ_size;
+
+	PK11SymKey *finalkey = ikev2_ike_sa_keymat(sk->prf, skeyseed_k,
+						   ni, nr, &sk->ike_spis,
+						   total_keysize);
+	release_symkey(__func__, "skeyseed_k", &skeyseed_k);
+
+	size_t next_byte = 0;
+
+	SK_d_k = key_from_symkey_bytes(finalkey, next_byte, skd_bytes);
+	next_byte += skd_bytes;
+
+	SK_ai_k = key_from_symkey_bytes(finalkey, next_byte, integ_size);
+	next_byte += integ_size;
+
+	SK_ar_k = key_from_symkey_bytes(finalkey, next_byte, integ_size);
+	next_byte += integ_size;
+
+	/* The encryption key and salt are extracted together. */
+
+	if (encrypter != NULL)
+		SK_ei_k = encrypt_key_from_symkey_bytes("SK_ei_k",
+						encrypter,
+						next_byte, key_size,
+						finalkey);
+	else
+		SK_ei_k = NULL;
+	next_byte += key_size;
+
+	SK_pi_k = key_from_symkey_bytes(finalkey, next_byte, skp_bytes);
+	/* store copy of SK_pi_k for later use in authnull */
+	chunk_SK_pi = chunk_from_symkey("chunk_SK_pi", SK_pi_k);
+	next_byte += skp_bytes;
+
+	SK_pr_k = key_from_symkey_bytes(finalkey, next_byte, skp_bytes);
+	/* store copy of SK_pr_k for later use in authnull */
+	chunk_SK_pr = chunk_from_symkey("chunk_SK_pr", SK_pr_k);
+
+	DBG(DBG_CRYPT,
+	    DBG_log("NSS ikev2: finished computing individual keys for IKEv2 SA Session Resume"));
+	release_symkey(__func__, "finalkey", &finalkey);
+
+	passert(*SK_d_out == NULL);
+	*SK_d_out = SK_d_k;
+	passert(*SK_ai_out == NULL);
+	*SK_ai_out = SK_ai_k;
+	passert(*SK_ar_out == NULL);
+	*SK_ar_out = SK_ar_k;
+	passert(*SK_ei_out == NULL);
+	*SK_ei_out = SK_ei_k;
+	passert(*SK_er_out == NULL);
+	*SK_er_out = SK_er_k;
+	passert(*SK_pi_out == NULL);
+	*SK_pi_out = SK_pi_k;
+	passert(*SK_pr_out == NULL);
+	*SK_pr_out = SK_pr_k;
+
+	DBG(DBG_CRYPT, {
+		/* ??? this won't fire count-pointers.awk; should it? */
+		DBG_log("calc_skeyseed_v2 pointers: SK_d-key@%p, SK_ai-key@%p, SK_ar-key@%p, SK_ei-key@%p, SK_er-key@%p, SK_pi-key@%p, SK_pr-key@%p",
+			 SK_d_k, SK_ai_k, SK_ar_k, SK_ei_k, SK_er_k, SK_pi_k, SK_pr_k);
+		DBG_dump_hunk("calc_skeyseed_v2 SK_pi", chunk_SK_pi);
+		DBG_dump_hunk("calc_skeyseed_v2 SK_pr", chunk_SK_pr);
+	
+	});
+
+
+}
+
 /* NOTE: if NSS refuses to calculate DH, skr->shared == NULL */
 /* MUST BE THREAD-SAFE */
 void calc_dh_v2(struct pluto_crypto_req *r)
@@ -376,4 +509,21 @@ void calc_dh_v2(struct pluto_crypto_req *r)
 			 &sk->skey_responder_salt, /* output */
 			 &sk->skey_chunk_SK_pi, /* output */
 			 &sk->skey_chunk_SK_pr); /* output */
+}
+
+/*performs required prf for session resumption v2*/
+void calc_skeyseed_session_resume_v2(struct pluto_crypto_req *r) {
+	struct pcr_dh_v2 *const sk = &r->pcr_d.v2_sr;
+    
+	calc_skeyseed_v2_sr(sk,  /* input */
+			 sk->key_size,  /* input */
+			 &sk->skeyid_d,        /* output */
+			 &sk->skeyid_ai,       /* output */
+			 &sk->skeyid_ar,       /* output */
+			 &sk->skeyid_ei,       /* output */
+			 &sk->skeyid_er,       /* output */
+			 &sk->skeyid_pi,       /* output */
+			 &sk->skeyid_pr,       /* output */
+			 );
+
 }

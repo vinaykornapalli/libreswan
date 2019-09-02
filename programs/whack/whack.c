@@ -116,7 +116,7 @@ static void help(void)
 		"	[--ikev1-allow | --ikev2-allow] \\\n"
 		"	[--allow-narrowing] [--sareftrack] [--sarefconntrack] \\\n"
 		"	[--ikefrag-allow | --ikefrag-force] [--no-ikepad] \\\n"
-		"	[--esn ] [--no-esn] [--decap-dscp] [--nopmtudisc] [--mobike] \\\n"
+		"	[--esn ] [--no-esn] [--decap-dscp] [--nopmtudisc] [--mobike] [--session-resumption] \\\n"
 #ifdef HAVE_NM
 		"	[--nm-configured] \\\n"
 #endif
@@ -200,6 +200,8 @@ static void help(void)
 		"	[--clearstats] | [--shuntstatus] | [--fipsstatus] | [--briefstatus] \n"
 		"\n"
 		"refresh dns: whack --ddns\n"
+		"suspend: whack --suspend --name <connection_name>\n"
+		"resume: whack --resume --name <connection_name>)\n"
 		"\n"
 #ifdef HAVE_SECCOMP
 		"testing: whack --seccomp-crashtest (CAREFUL!)\n"
@@ -348,6 +350,8 @@ enum option_enums {
 	OPT_XAUTHPASS,
 	OPT_WHACKRECORD,
 	OPT_WHACKSTOPRECORD,
+	OPT_HIBERNATE,
+	OPT_IKE_RESUME,
 
 #define OPT_LAST2 OPT_WHACKSTOPRECORD	/* last "normal" option, range 2 */
 
@@ -463,6 +467,7 @@ enum option_enums {
 	CD_RSA_SHA2_384,
 	CD_RSA_SHA2_512,
 	CD_ESP,
+	CD_IKE_SESSION_RESUME,
 #   define CD_LAST CD_ESP	/* last connection description */
 
 /*
@@ -587,6 +592,8 @@ static const struct option long_opts[] = {
 	{ "oppodport", required_argument, NULL, OPT_OPPO_DPORT + OO },
 
 	{ "asynchronous", no_argument, NULL, OPT_ASYNC + OO },
+	{ "suspend", no_argument, NULL, OPT_HIBERNATE + OO },
+	{ "resume", no_argument, NULL, OPT_IKE_RESUME + OO },
 
 	/* list options */
 
@@ -767,6 +774,7 @@ static const struct option long_opts[] = {
 	PS("nopmtudisc", NOPMTUDISC),
 	PS("ms-dh-downgrade", MSDH_DOWNGRADE),
 	PS("dns-match-id", DNS_MATCH_ID),
+	PS("session-resumption",SESSION_RESUME),
 #undef PS
 
 
@@ -1248,6 +1256,18 @@ int main(int argc, char **argv)
 			msg.whack_delete = TRUE;
 			continue;
 
+		case OPT_HIBERNATE:
+		    msg.whack_hibernate = TRUE;
+			continue;
+
+		case OPT_IKE_RESUME:
+		    if(msg.whack_hibernate) {
+				diag("Use only one of the flags i.e., --suspend --name <conname> or --resume --name <conname>");
+			} else {
+                msg.whack_resume = TRUE;
+			}
+			continue;
+
 		case OPT_DELETEID: /* --deleteid  --name <id> */
 			msg.whack_deleteid = TRUE;
 			continue;
@@ -1409,6 +1429,7 @@ int main(int argc, char **argv)
 		case OPT_ASYNC:	/* --asynchronous */
 			msg.whack_async = TRUE;
 			continue;
+
 
 		/* List options */
 
@@ -1694,6 +1715,9 @@ int main(int argc, char **argv)
 
 		/* --mobike */
 		case CDP_SINGLETON + POLICY_MOBIKE_IX:
+
+		 /* --session-resumption */
+		case CDP_SINGLETON + POLICY_SESSION_RESUME_IX:
 
 		/* --sareftrack */
 		case CDP_SINGLETON + POLICY_SAREF_TRACK_IX:
@@ -2289,7 +2313,7 @@ int main(int argc, char **argv)
 			}
 			continue;
 		}
-
+       
 		default:
 			bad_case(c);
 			break;
@@ -2400,7 +2424,8 @@ int main(int argc, char **argv)
 		       LELEM(OPT_ROUTE) | LELEM(OPT_UNROUTE) |
 		       LELEM(OPT_INITIATE) | LELEM(OPT_TERMINATE) |
 		       LELEM(OPT_DELETE) |  LELEM(OPT_DELETEID) |
-		       LELEM(OPT_DELETEUSER) | LELEM(OPT_CD))) {
+		       LELEM(OPT_DELETEUSER) | LELEM(OPT_CD) | 
+			   LELEM(OPT_HIBERNATE) | LELEM(OPT_IKE_RESUME))) {
 		if (!LHAS(opts1_seen, OPT_NAME))
 			diag("missing --name <connection_name>");
 	} else if (msg.whack_options == LEMPTY) {
@@ -2429,7 +2454,8 @@ int main(int argc, char **argv)
 	      msg.whack_reread || msg.whack_crash || msg.whack_shunt_status ||
 	      msg.whack_status || msg.whack_global_status || msg.whack_traffic_status ||
 	      msg.whack_fips_status || msg.whack_brief_status || msg.whack_clear_stats || msg.whack_options ||
-	      msg.whack_shutdown || msg.whack_purgeocsp || msg.whack_seccomp_crashtest))
+	      msg.whack_shutdown || msg.whack_purgeocsp || msg.whack_seccomp_crashtest ||
+		  msg.whack_hibernate || msg.whack_resume))
 		diag("no action specified; try --help for hints");
 
 	/* do the logic for --redirect command */

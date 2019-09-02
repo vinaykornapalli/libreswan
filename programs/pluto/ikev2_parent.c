@@ -84,6 +84,7 @@
 #include "ikev2_msgid.h"
 #include "state_db.h"
 #include "crypt_symkey.h" /* for release_symkey */
+#include "ikev2_session_resume.h"
 #include "ip_info.h"
 
 struct mobike {
@@ -2444,6 +2445,14 @@ static stf_status ikev2_parent_inR1outI2_tail(struct state *pst, struct msg_dige
 		}
 		freeanychunk(null_auth);
 	}
+    
+	/*N(TICKET_REQUEST) is a notification payload for request ticket from responder*/
+     
+	 if (LIN(POLICY_SESSION_RESUME, cc->policy)) { 
+		 if (!emit_v2N(v2N_TICKET_REQUEST, &sk.pbs)) {
+			 return STF_INTERNAL_ERROR;
+		 }
+	 }
 
 	/* send CP payloads */
 	if (pc->modecfg_domains != NULL || pc->modecfg_dns != NULL) {
@@ -2797,6 +2806,11 @@ stf_status ikev2_parent_inI2outR2_id_tail(struct msg_digest *md)
 			st->st_seen_initialc = TRUE;
 			break;
 
+        case v2N_TICKET_REQUEST:
+		    DBG(DBG_CONTROLMORE, DBG_log("TICKET_REQUEST received"));
+			st->st_seen_ticket_request = TRUE;
+			break;
+
 		/* Child SA related NOTIFYs are processed later in ikev2_process_ts_and_rest() */
 		case v2N_USE_TRANSPORT_MODE:
 		case v2N_IPCOMP_SUPPORTED:
@@ -3056,6 +3070,42 @@ static stf_status ikev2_parent_inI2outR2_auth_tail(struct state *st,
 		if (!emit_v2N(v2N_ESP_TFC_PADDING_NOT_SUPPORTED, &sk.pbs))
 			return STF_INTERNAL_ERROR;
 	}
+
+	if (LIN(POLICY_SESSION_RESUME, c->policy) && st->st_seen_ticket_request) {
+		chunk_t tk_payl_chunk = st_to_ticket(st);
+		if (!emit_v2Nchunk(v2N_TICKET_LT_OPAQUE, &tk_payl_chunk, &sk.pbs)) {
+			return STF_INTERNAL_ERROR;
+		}
+		freeanychunk(tk_payl_chunk);
+
+		
+   /* 
+	* N(TICKET_ACK) comes into action if there are any packet size limitations 
+	* To-do: Need to find those situations. 
+	*/
+#if 0
+		if (!emit_v2N(v2N_TICKET_ACK, &sk.pbs))
+			return STF_INTERNAL_ERROR;
+		DBG(DBG_CONTROLMORE, DBG_log("TICKET_ACK sent"));
+#endif
+
+   /*
+	*As per RFC 
+	*Returns an N(TICKET_NACK) payload, if it refuses to grant a
+	*ticket for some reason.
+	*But currently exact reason for not granting is not determined yet.
+	*/
+#if 0
+		if (!emit_v2N(v2N_TICKET_NACK, &sk.pbs))
+			return STF_INTERNAL_ERROR;
+#endif
+	    
+	}
+
+	
+	    
+	
+	
 
 	/* send out the IDr payload */
 	unsigned char idhash_out[MAX_DIGEST_LEN];
@@ -3569,6 +3619,25 @@ stf_status ikev2_parent_inR2(struct state *st, struct msg_digest *md)
 			DBG(DBG_CONTROLMORE, DBG_log("Received v2N_USE_TRANSPORT_MODE in IKE_AUTH reply"));
 			got_transport = TRUE;
 			break;
+		case v2N_TICKET_LT_OPAQUE:
+		{
+			pb_stream pbs = ntfy->pbs;
+			size_t len = pbs_left(&pbs);
+            if(len <= MAX_TICKET_SIZE) {
+				DBG(DBG_CONTROL, DBG_log("received TICKET_LT_OPAQUE"));
+				chunk_t tk_payl_chunk = alloc_chunk(len, "TICKET_LT_OPAQUE");
+
+				if (!in_raw(tk_payl_chunk.ptr, len, &pbs, "TICKET_LT_OPAQUE extract")) {
+					freeanychunk(tk_payl_chunk);
+					return STF_FATAL;
+			    }
+			} else {
+				DBG(DBG_CONTROLMORE, DBG_log("Received opaque ticket larger than max standard size"));
+			}
+		
+			break;
+		}
+		    
 		default:
 			DBG(DBG_CONTROLMORE, DBG_log("Received %s notify - ignored",
 				enum_name(&ikev2_notify_names,

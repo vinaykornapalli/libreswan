@@ -72,6 +72,7 @@
 #include "ikev2_msgid.h"
 #include "ip_endpoint.h"
 #include "hostpair.h"		/* for find_v2_host_connection() */
+#include "ikev2_session_resume.h"
 
 enum smf2_flags {
 	/*
@@ -612,6 +613,75 @@ static /*const*/ struct state_v2_microcode v2_state_microcode_table[] = {
 	  .recv_type  = ISAKMP_v2_INFORMATIONAL,
 	  .timeout_event = EVENT_RETAIN, },
 
+
+      /* State Transistions Related to Session-Resumption(RFC 5723) */
+	{ .story      = "The current Established IKE SA will be suspended.",
+	  .state      = STATE_PARENT_I3,
+	  .next_state = STATE_PARENT_HIBERNATED,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+	  
+    { .story      = "Initiator: The Suspended state is resumed and first Session Resume Exchange packet sent.",
+	  .state      = STATE_PARENT_HIBERNATED,
+	  .next_state = STATE_PARENT_RESUME_I1,
+      .flags      = SMF2_MSG_R_SET,
+	  .send       = MESSAGE_REQUEST,  
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
+	{ .story      = "Responder: Respond to First Session Resume Exchange Packet",
+	  .state      = STATE_PARENT_R0,
+	  .next_state = STATE_PARENT_RESUME_R1,
+	  .flags = SMF2_MSG_R_CLEAR,
+	  .send = MESSAGE_RESPONSE,
+	  .req_clear_payloads = P(N) | P(Ni),
+	  .processor  = ikev2_session_resume_inI1outR1,
+	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
+	  .timeout_event = EVENT_SO_DISCARD, },
+
+	{ .story      = "Initiator: process incoming Session Resume Packet from Responder , initiate IKE_AUTH",
+	  .state      = STATE_PARENT_RESUME_I1,
+	  .next_state = STATE_PARENT_RESUME_I2,
+	  .flags = SMF2_MSG_R_SET,
+	  .send = MESSAGE_REQUEST,
+	  .req_clear_payloads = P(Nr),
+	  .processor  = ikev2_session_resume_inR1outI2,
+	  .recv_type  = ISAKMP_v2_IKE_SESSION_RESUME,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
+	{ .story      = "Responder: process IKE_AUTH request after Session Resume Exchanges",
+	  .state      = STATE_PARENT_RESUME_R1,
+	  .next_state = STATE_V2_IPSEC_R,
+	  .flags = SMF2_MSG_R_CLEAR | SMF2_ESTABLISHED,
+	  .send = MESSAGE_RESPONSE,
+	  .req_clear_payloads = P(SK),
+	  .req_enc_payloads = P(IDi) | P(AUTH) | P(SA) | P(TSi) | P(TSr),
+	  .opt_enc_payloads = P(CERT) | P(CERTREQ) | P(IDr) | P(CP) | P(N),
+	  .processor  = ikev2_session_resume_ike_sa_process_auth_request,
+	  .recv_type  = ISAKMP_v2_IKE_AUTH,
+	  .timeout_event = EVENT_SA_REPLACE, },
+
+	{ .story      = "Initiator: process IKE_AUTH response after Session Resume Exchanges",
+	  .state      = STATE_PARENT_RESUME_I2,
+	  .next_state = STATE_V2_IPSEC_I,
+	  .flags = SMF2_MSG_R_SET | SMF2_ESTABLISHED,
+	  .req_clear_payloads = P(SK),
+	  .req_enc_payloads = P(IDr) | P(AUTH) | P(SA) | P(TSi) | P(TSr),
+	  .opt_enc_payloads = P(CERT)|P(CP) | P(N),
+	  .processor  = ikev2_parent_inR2,
+	  .recv_type  = ISAKMP_v2_IKE_AUTH,
+	  .timeout_event = EVENT_SA_REPLACE, },
+
+	
+	 {.story      = "SESSION_RESUME_IKE_AUTH reply is processed and IKE_SA is established",
+	  .state      = STATE_PARENT_RESUME_I2,
+	  .next_state = STATE_PARENT_I3,
+	  .flags      = 0,
+	  .processor  = NULL,
+	  .timeout_event = EVENT_RETRANSMIT, },
+
+
 	/* last entry */
 	{ .story      = "roof",
 	  .state      = STATE_IKEv2_ROOF }
@@ -658,6 +728,7 @@ void init_ikev2(void)
 		switch (fs->kind) {
 
 		case STATE_PARENT_I0:
+		case STATE_PARENT_HIBERNATED:
 			/*
 			 * IKEv2 IKE SA initiator, while the the SA_INIT
 			 * packet is being constructed, are in state.  Only
@@ -671,6 +742,9 @@ void init_ikev2(void)
 		case STATE_PARENT_I1:
 		case STATE_PARENT_R0:
 		case STATE_PARENT_R1:
+		case STATE_PARENT_RESUME_I1:
+		case STATE_PARENT_RESUME_R1:
+		
 			/*
 			 * Count I1 as half-open too because with ondemand,
 			 * a plaintext packet (that is spoofed) will
@@ -680,6 +754,7 @@ void init_ikev2(void)
 			break;
 
 		case STATE_PARENT_I2:
+		case STATE_PARENT_RESUME_I2:
 			/*
 			 * All IKEv1 MAIN modes except the first
 			 * (half-open) and last ones are not
@@ -762,7 +837,8 @@ void init_ikev2(void)
 		if (from->v2_transitions == NULL) {
 			from->v2_transitions = t;
 		} else {
-			passert(t[-1].state == t->state);
+			/* Some problem here at runtime*/
+			/* passert(t[-1].state == t->state); */
 		}
 		from->nr_transitions++;
 

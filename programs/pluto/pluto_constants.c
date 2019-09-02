@@ -227,7 +227,10 @@ static const char *const state_name[] = {
 	S(STATE_V2_IPSEC_R),
 	S(STATE_IKESA_DEL),
 	S(STATE_CHILDSA_DEL),
-
+	S(STATE_PARENT_HIBERNATED),
+	S(STATE_PARENT_RESUME_I1),
+	S(STATE_PARENT_RESUME_I2),
+	S(STATE_PARENT_RESUME_R1),
 	S(STATE_IKEv2_ROOF),
 };
 #undef S
@@ -302,6 +305,11 @@ static const char *const state_story[] = {
 	/* ??? better story needed for these */
 	[STATE_IKESA_DEL] = "STATE_IKESA_DEL",
 	[STATE_CHILDSA_DEL] = "STATE_CHILDSA_DEL",
+
+	[STATE_PARENT_HIBERNATED] = "STATE_PARENT_HIBERNATED",
+	[STATE_PARENT_RESUME_I1] = "STATE_PARENT_RESUME_I1",
+	[STATE_PARENT_RESUME_I2] = "STATE_PARENT_RESUME_I2",
+	[STATE_PARENT_RESUME_R1] = "STATE_PARENT_RESUME_R1",
 
 	[STATE_IKEv2_ROOF] = "invalid state - IKEv2 roof",
 };
@@ -423,6 +431,7 @@ const char *const sa_policy_bit_names[] = {
 	"IKE_FRAG_FORCE",
 	"NO_IKEPAD",
 	"MOBIKE",
+        "SESSION_RESUME",
 	"PPK_ALLOW",
 	"PPK_INSIST",
 	"ESN_NO",

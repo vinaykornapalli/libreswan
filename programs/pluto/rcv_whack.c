@@ -75,6 +75,7 @@
 #include "ip_address.h" /* for setportof() */
 #include "crl_queue.h"
 #include "pluto_sd.h"
+#include "ikev2_session_resume.h"
 
 #include "pluto_stats.h"
 
@@ -592,6 +593,52 @@ void whack_process(fd_t whackfd, const struct whack_message *const m)
 					    m->impairing,
 					    pass_remote ? m->remote_host : NULL);
 		}
+	}
+    /* Stuff related to Session-Resumption */
+	if (m->whack_hibernate) {
+     if(m->name == NULL) {
+		whack_log(RC_FATAL, "received whack command to delete a connection, but did not receive the connection name - ignored");
+	 } else {
+		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
+		if (c == NULL) {
+            whack_log(RC_UNKNOWN_NAME, 
+			"Connection with given name not found, try again with valid name");
+		} else {
+			whack_log(RC_LOG, 
+			"Connection is Found ");
+			
+             hibernate_connection(c); 
+		}
+
+	 }
+	}
+
+	if (m->whack_resume) {
+	 if (m->name == NULL) {
+		 whack_log(RC_FATAL, "received whack command to delete a connection, but did not receive the connection name - ignored");
+	 } else {
+		struct connection *c = conn_by_name(m->name, FALSE ,FALSE);
+		if (c == NULL) {
+            whack_log(RC_UNKNOWN_NAME,
+			 "Connection with given name not found,try again with valid name");
+		} else {
+             // To add state transistion functions
+			struct state *st = state_with_serialno(c->newest_isakmp_sa);
+			if(st!=NULL) {
+                ikev2_session_resume_outI1(st);
+			} else{
+				whack_log(RC_LOG,
+                  "state not found");
+			}
+			
+			 
+		}
+
+	 }
+	}
+
+	if(m->whack_resume) {
+
 	}
 
 	if (m->whack_oppo_initiate) {
